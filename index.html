@@ -1,0 +1,2861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原材料调整看板 - 品质模块</title>
+    <script>
+        (function () {
+            const sources = [
+                "../../../assets/vendor/echarts.min.js",
+                "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"
+            ];
+            window.loadEcharts = function (callback) {
+                if (window.echarts) return callback();
+                let index = 0;
+                const loadNext = () => {
+                    if (window.echarts) return callback();
+                    if (index >= sources.length) {
+                        document.addEventListener("DOMContentLoaded", () => {
+                            document.querySelectorAll(".chart").forEach(node => {
+                                node.innerHTML = '<div class="empty">图表库加载失败，请检查本地资源路径</div>';
+                            });
+                        });
+                        return;
+                    }
+                    const script = document.createElement("script");
+                    script.src = sources[index++];
+                    script.onload = callback;
+                    script.onerror = loadNext;
+                    document.head.appendChild(script);
+                };
+                loadNext();
+            };
+        })();
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #165DFF;
+            --success: #00B42A;
+            --warning: #FF7D00;
+            --danger: #F53F3F;
+            --accent: #722ED1;
+            --cyan: #14C9C9;
+            --bg-page: #F5F7FB;
+            --bg-card: #FFFFFF;
+            --bg-soft: #F8FAFF;
+            --border: #E5E8EF;
+            --text-primary: #1D2129;
+            --text-secondary: #4E5969;
+            --text-muted: #86909C;
+            --shadow: 0 4px 14px rgba(16, 31, 67, 0.06);
+        }
+
+        body.dark-theme {
+            --bg-page: #111827;
+            --bg-card: #182033;
+            --bg-soft: #202A3D;
+            --border: #344054;
+            --text-primary: #F5F7FB;
+            --text-secondary: #D0D5DD;
+            --text-muted: #98A2B3;
+            --shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-page);
+            color: var(--text-primary);
+            font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            min-height: 64px;
+            padding: 12px 24px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .brand-title {
+            font-size: 18px;
+            line-height: 1.2;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .brand-subtitle {
+            margin-top: 2px;
+            color: var(--text-muted);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            height: 34px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .btn.primary {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn.primary:hover {
+            color: #fff;
+            background: #0E42D2;
+        }
+
+        .container {
+            max-width: 1760px;
+            margin: 0 auto;
+            padding: 20px 24px 32px;
+        }
+
+        .page-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .page-title {
+            font-size: 22px;
+            line-height: 1.35;
+            font-weight: 700;
+        }
+
+        .page-subtitle {
+            margin-top: 4px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .status-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 6px;
+            background: rgba(22, 93, 255, 0.08);
+            color: var(--primary);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .tag.success {
+            background: rgba(0, 180, 42, 0.1);
+            color: var(--success);
+        }
+
+        .tag.warning {
+            background: rgba(255, 125, 0, 0.1);
+            color: var(--warning);
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            align-items: end;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .field {
+            min-width: 0;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .field select,
+        .field input {
+            width: 100%;
+            height: 34px;
+            padding: 0 10px;
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .field select:focus,
+        .field input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.12);
+        }
+
+        .filter-summary {
+            grid-column: 1 / -1;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .summary-card,
+        .card,
+        .material-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        body.edit-mode .card,
+        body.edit-mode .material-card {
+            outline: 1px dashed rgba(22, 93, 255, 0.5);
+            outline-offset: 2px;
+        }
+
+        body.edit-mode .card::before,
+        body.edit-mode .material-card::before {
+            content: "模块";
+            position: absolute;
+            right: 12px;
+            top: 8px;
+            z-index: 2;
+            height: 22px;
+            padding: 0 8px;
+            border-radius: 8px;
+            background: rgba(22, 93, 255, 0.1);
+            color: var(--primary);
+            font-size: 12px;
+            line-height: 22px;
+            font-weight: 600;
+        }
+
+        body.annotation-mode .container {
+            padding-right: 392px;
+        }
+
+        [data-annotation-id] {
+            position: relative;
+        }
+
+        body.annotation-mode [data-annotation-id] {
+            outline: 2px dashed #ff7d00;
+            outline-offset: 3px;
+        }
+
+        body.annotation-mode [data-annotation-id].annotation-active {
+            outline-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(22, 93, 255, 0.12);
+        }
+
+        .annotation-marker {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            z-index: 8;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #ff7d00;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 22px;
+            text-align: center;
+            pointer-events: none;
+            box-shadow: 0 4px 10px rgba(255, 125, 0, 0.28);
+        }
+
+        body.annotation-mode [data-annotation-id].annotation-active > .annotation-marker {
+            background: var(--primary);
+        }
+
+        .annotation-panel {
+            position: fixed;
+            top: 64px;
+            right: 16px;
+            z-index: 30;
+            display: none;
+            width: 360px;
+            max-height: calc(100vh - 88px);
+            overflow: auto;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-card);
+            box-shadow: 0 18px 42px rgba(16, 31, 67, 0.18);
+        }
+
+        body.annotation-mode .annotation-panel {
+            display: block;
+        }
+
+        .annotation-panel-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .annotation-panel-title {
+            margin: 0;
+            font-size: 17px;
+            line-height: 1.35;
+        }
+
+        .annotation-panel-id {
+            display: inline-flex;
+            align-items: center;
+            height: 22px;
+            padding: 0 8px;
+            margin-bottom: 6px;
+            border-radius: 999px;
+            background: rgba(255, 125, 0, 0.12);
+            color: #d46b08;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .annotation-block {
+            padding: 12px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .annotation-block h4 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .annotation-block p,
+        .annotation-block li {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .annotation-block ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .summary-card {
+            padding: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .summary-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .summary-value {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            margin-top: 8px;
+            font-size: 28px;
+            line-height: 1;
+            font-weight: 700;
+        }
+
+        .summary-unit {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .material-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .material-card {
+            position: relative;
+            min-height: 284px;
+            padding: 14px;
+            text-align: left;
+            color: inherit;
+            border-top: 4px solid var(--card-color, var(--primary));
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .material-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(22, 93, 255, 0.35);
+            box-shadow: 0 10px 24px rgba(16, 31, 67, 0.12);
+        }
+
+        .material-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .material-name {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .status-pill {
+            flex: 0 0 auto;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--bg-soft);
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .status-pill.detail {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .metric-tile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-soft);
+            text-align: center;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .metric-value {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 3px;
+            margin-top: 6px;
+            font-size: 18px;
+            line-height: 1;
+            font-weight: 700;
+        }
+
+        .metric-tags,
+        .sample-tags {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .metric-tags {
+            margin-top: 6px;
+        }
+
+        .sample-module {
+            margin-top: 14px;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .sample-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .sample-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 76px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-soft);
+            text-align: center;
+        }
+
+        .sample-name {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .info-tag {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            padding: 0 7px;
+            border-radius: 999px;
+            background: rgba(22, 93, 255, 0.08);
+            color: var(--primary);
+            font-size: 12px;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .detail-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 26px;
+            padding: 0 10px;
+            border: 1px solid rgba(22, 93, 255, 0.18);
+            border-radius: 999px;
+            background: rgba(22, 93, 255, 0.08);
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .detail-layout {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            position: relative;
+            min-width: 0;
+            padding: 16px;
+        }
+
+        .col-4 {
+            grid-column: span 6;
+        }
+
+        .col-5 {
+            grid-column: span 6;
+        }
+
+        .col-7 {
+            grid-column: span 6;
+        }
+
+        .col-8 {
+            grid-column: span 6;
+        }
+
+        .col-12 {
+            grid-column: span 12;
+        }
+
+        .col-third {
+            grid-column: span 4;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .card-note {
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .trend-mode-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .trend-mode-control select {
+            width: 96px;
+            height: 32px;
+            padding: 0 8px;
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .trend-segmented {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-page);
+        }
+
+        .trend-segmented[hidden] { display: none; }
+
+        .trend-segmented button {
+            min-width: 56px;
+            height: 28px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            background: transparent;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .trend-segmented button.active {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 2px 6px rgba(22, 93, 255, 0.22);
+        }
+
+        .chart {
+            width: 100%;
+            height: 320px;
+        }
+
+        .chart.small {
+            height: 320px;
+        }
+
+        .detail-kpis {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .detail-kpi {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 78px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-soft);
+            text-align: center;
+        }
+
+        .detail-kpi strong {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 8px;
+            font-size: 22px;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .analysis-item {
+            min-height: 86px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-soft);
+        }
+
+        .analysis-item span {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .analysis-item strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .can-monitor.hidden {
+            display: none;
+        }
+
+        .can-monitor-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .can-monitor-head label {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .can-monitor-head select {
+            width: 180px;
+            height: 34px;
+            padding: 0 10px;
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .section-label {
+            margin: 12px 0 10px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .can-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .can-data-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .can-data-grid.two-row {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .can-data-grid.two-column {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .flavor-input-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-card);
+        }
+
+        .flavor-input-head {
+            display: grid;
+            place-items: center;
+            min-height: 58px;
+            padding: 10px;
+            border-right: 1px solid var(--border);
+            background: rgba(22, 93, 255, 0.08);
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .flavor-input-head:nth-child(4) {
+            border-right: 0;
+        }
+
+        .flavor-input-cell {
+            padding: 10px 16px;
+            border-top: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+        }
+
+        .flavor-input-cell:nth-child(8) {
+            border-right: 0;
+        }
+
+        .flavor-field {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-soft);
+            color: var(--text-primary);
+            font-size: 16px;
+        }
+
+        .flavor-field .select-arrow {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .liquid-input-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .liquid-input-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 86px;
+            padding: 12px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-soft);
+            color: var(--text-primary);
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .liquid-input-cell:nth-child(2n) {
+            border-right: 1px solid var(--border);
+        }
+
+        .liquid-input-cell:nth-last-child(-n + 2) {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .liquid-input-name {
+            width: 100%;
+        }
+
+        .liquid-input-name strong {
+            display: block;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .liquid-input-meta {
+            margin-top: 6px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .liquid-input-field {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            min-height: 28px;
+            color: var(--text-primary);
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .liquid-input-field .select-arrow {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .can-tile.alert {
+            border-color: rgba(245, 63, 63, 0.35);
+            background: rgba(245, 63, 63, 0.05);
+        }
+
+        .can-chart {
+            height: 340px;
+            margin-top: 14px;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 980px;
+        }
+
+        th,
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--bg-soft);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        tbody tr:hover {
+            background: rgba(22, 93, 255, 0.04);
+        }
+
+        .result {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: #EDF1F7;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .result.success {
+            background: rgba(0, 180, 42, 0.1);
+            color: var(--success);
+        }
+
+        .result.warning {
+            background: rgba(255, 125, 0, 0.1);
+            color: var(--warning);
+        }
+
+        .result.danger {
+            background: rgba(245, 63, 63, 0.1);
+            color: var(--danger);
+        }
+
+        .empty {
+            display: grid;
+            place-items: center;
+            min-height: 180px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 1280px) {
+
+            .summary-grid,
+            .material-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .liquid-input-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .sample-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .detail-kpis {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+        }
+
+        @media (max-width: 900px) {
+            .col-4,
+            .col-5,
+            .col-7,
+            .col-8,
+            .col-third {
+                grid-column: span 12;
+            }
+
+            body.annotation-mode .container {
+                padding-right: 20px;
+                padding-bottom: 360px;
+            }
+
+            .annotation-panel {
+                top: auto;
+                right: 12px;
+                bottom: 12px;
+                left: 12px;
+                width: auto;
+                max-height: 330px;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .topbar,
+            .page-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            .summary-grid,
+            .material-grid,
+            .sample-grid,
+            .detail-kpis,
+            .analysis-grid,
+            .can-meta-grid,
+            .can-data-grid,
+            .can-data-grid.two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .field select,
+            .field input,
+            .btn {
+                min-height: 44px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">Q</div>
+            <div>
+                <div class="brand-title">数智工厂品质模块</div>
+                <div class="brand-subtitle">原材料调整看板 / 首页与详情页</div>
+            </div>
+        </div>
+        <div class="topbar-actions">
+            <button class="btn" id="annotationButton" type="button" onclick="toggleAnnotationMode()">标注</button>
+            <span class="tag" id="updateTime">更新时间 --</span>
+            <button class="btn" type="button" onclick="goHome()">首页</button>
+            <button class="btn" type="button" onclick="refresh()">刷新</button>
+            <button class="btn" id="themeButton" type="button" onclick="toggleTheme()">深色</button>
+            <button class="btn" id="editButton" type="button" onclick="toggleEditMode()">编辑看板</button>
+            <button class="btn primary" type="button" onclick="exportCurrent()">导出当前数据</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="page-head" data-annotation-id="page-head" data-annotation-label="A1">
+            <div>
+                <h1 class="page-title" id="pageTitle">原材料看板</h1>
+                <p class="page-subtitle" id="pageSubtitle">按物料汇总检测数量、合格、不合格、复检和供应商合格率</p>
+            </div>
+            <div class="status-strip">
+                <span class="tag success">合格率：合格数量 / 已完成检测数量</span>
+            </div>
+        </section>
+
+        <section class="toolbar" aria-label="全局筛选" data-annotation-id="global-filters" data-annotation-label="A2">
+            <div class="field">
+                <label for="startDate">开始日期</label>
+                <input id="startDate" type="date" value="2026-06-01">
+            </div>
+            <div class="field">
+                <label for="endDate">结束日期</label>
+                <input id="endDate" type="date" value="2026-06-30">
+            </div>
+            <div class="field">
+                <label for="periodType">周期类型</label>
+                <select id="periodType">
+                    <option value="day">按日</option>
+                    <option value="week" selected>按周</option>
+                    <option value="month">按月</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="supplierFilter">供应商</label>
+                <select id="supplierFilter">
+                    <option value="all">全部供应商</option>
+                </select>
+            </div>
+            <button class="btn primary" type="button" onclick="refresh()">刷新数据</button>
+            <div class="filter-summary" id="filterSummary">当前筛选：--</div>
+        </section>
+
+        <section class="view active" id="homeView">
+            <div class="material-grid" id="materialGrid"></div>
+            <article class="sample-module" data-module-id="content-samples" data-annotation-id="content-samples" data-annotation-label="B9">
+                <div class="card-head">
+                    <div>
+                        <h2 class="card-title">内容物留样数</h2>
+                        <p class="page-subtitle">按红牛普通、红牛强化、战马类型统计</p>
+                    </div>
+                </div>
+                <div class="sample-grid" id="sampleGrid"></div>
+            </article>
+        </section>
+
+        <section class="view" id="detailView">
+            <div class="detail-layout">
+                <article class="card col-12" data-module-id="detail-kpis" data-annotation-id="detail-kpis" data-annotation-label="C1">
+                    <div class="card-head">
+                        <div>
+                            <h2 class="card-title" id="detailTitle">物料详情</h2>
+                            <p class="page-subtitle" id="detailSubtitle"></p>
+                        </div>
+                        <button class="btn" type="button" onclick="goHome()">返回首页</button>
+                    </div>
+                    <div class="detail-kpis" id="detailKpis"></div>
+                </article>
+
+                <article class="card col-12" data-module-id="trend-chart" data-annotation-id="detail-trend" data-annotation-label="C2">
+                    <div class="card-head">
+                        <h2 class="card-title" id="trendCardTitle">检测合格率趋势</h2>
+                        <div class="trend-mode-control">
+                            <span class="card-note film-product-control">产品类型</span>
+                            <select id="filmProductTypeSelect" class="film-product-control">
+                                <option value="普通型">普通型</option>
+                                <option value="强化型">强化型</option>
+                                <option value="PE彩膜">PE彩膜</option>
+                            </select>
+                            <span class="card-note" id="trendCardNote">随周期类型切换横轴</span>
+                            <div class="trend-segmented" id="lidTrendModeSwitch" aria-label="顶盖趋势统计方式" hidden>
+                                <button type="button" data-mode="overall" onclick="setLidTrendMode('overall')">综合</button>
+                                <button type="button" data-mode="line" onclick="setLidTrendMode('line')">产线</button>
+                                <button type="button" data-mode="version" onclick="setLidTrendMode('version')">版本</button>
+                            </div>
+                            <select id="trendModeSelect">
+                                <option value="overall">综合</option>
+                                <option value="version">按版本</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="trendChart" class="chart"></div>
+                </article>
+
+                <article class="card col-third" data-module-id="defect-type" data-annotation-id="defect-type" data-annotation-label="C3">
+                    <div class="card-head">
+                        <h2 class="card-title">不良类型分布</h2>
+                        <span class="card-note">补充分析 1</span>
+                    </div>
+                    <div id="defectTypeChart" class="chart small"></div>
+                </article>
+
+                <article class="card col-third" data-module-id="defect-reason" data-annotation-id="defect-reason" data-annotation-label="C4">
+                    <div class="card-head">
+                        <h2 class="card-title">不良原因</h2>
+                        <span class="card-note">补充分析 2</span>
+                    </div>
+                    <div id="defectReasonChart" class="chart small"></div>
+                </article>
+
+                <article class="card col-third" data-module-id="defect-line" data-annotation-id="defect-line" data-annotation-label="C5">
+                    <div class="card-head">
+                        <h2 class="card-title" id="defectLineTitle">不良类型线别</h2>
+                        <span class="card-note">补充分析 3</span>
+                    </div>
+                    <div id="defectLineChart" class="chart small"></div>
+                </article>
+
+                <article class="card col-12 can-monitor hidden" id="canMonitorCard" data-module-id="metric-monitor" data-annotation-id="metric-monitor" data-annotation-label="C6">
+                    <div class="card-head">
+                        <h2 class="card-title" id="materialMonitorTitle">检测指标监控</h2>
+                        <div class="can-monitor-head">
+                            <label for="filmMonitorProductTypeSelect" class="film-monitor-product-control">类型</label>
+                            <select id="filmMonitorProductTypeSelect" class="film-monitor-product-control">
+                                <option value="普通型">普通型</option>
+                                <option value="强化型">强化型</option>
+                                <option value="PE彩膜">PE彩膜</option>
+                            </select>
+                            <label for="canMetricSelect" id="canMetricSelectLabel">趋势指标</label>
+                            <select id="canMetricSelect"></select>
+                        </div>
+                    </div>
+                    <div class="section-label" id="materialMonitorMetricTitle">关键指标</div>
+                    <div class="can-data-grid" id="canMetricGrid"></div>
+                    <div id="canMetricChart" class="chart can-chart"></div>
+                </article>
+
+                <article class="card col-12" data-module-id="batch-table" data-annotation-id="detail-table" data-annotation-label="C7">
+                    <div class="card-head">
+                        <h2 class="card-title">来料批次明细</h2>
+                        <span class="card-note" id="tableNote"></span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr id="detailHead">
+                                    <th>批次号</th>
+                                    <th>到货日期</th>
+                                    <th>物料</th>
+                                    <th>供应商</th>
+                                    <th>数量</th>
+                                    <th>检测项目</th>
+                                    <th>实测值</th>
+                                    <th>标准</th>
+                                    <th>结论</th>
+                                    <th>复检</th>
+                                    <th>原因</th>
+                                    <th>责任人</th>
+                                    <th>来源单据</th>
+                                    <th>详情</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailRows"></tbody>
+                        </table>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <aside class="annotation-panel" id="annotationPanel" aria-live="polite">
+        <div class="annotation-panel-head">
+            <div>
+                <div class="annotation-panel-id" id="annotationPanelTag">--</div>
+                <h3 class="annotation-panel-title" id="annotationPanelTitle">取值逻辑标注</h3>
+            </div>
+            <button class="btn" type="button" onclick="toggleAnnotationMode(false)">关闭</button>
+        </div>
+        <div id="annotationPanelBody"></div>
+    </aside>
+
+    <script>
+        const materials = [
+            { id: "can", name: "空罐（托）", dataKey: "空罐", unit: "托", color: "#FF7D00", desc: "卷封、罐体尺寸、皱纹度、库存预警" },
+            { id: "lid", name: "顶盖（托）", dataKey: "顶盖（托）", unit: "托", color: "#722ED1", desc: "外径、埋头度、钩边高度、启破力" },
+            { id: "carton", name: "纸皮（单）", dataKey: "纸皮", unit: "单", color: "#165DFF", desc: "尺寸、外观、印刷偏色与来料异常" },
+            { id: "film", name: "热缩膜（单）", dataKey: "热缩膜（单）", unit: "单", color: "#14C9C9", desc: "收缩率、厚度、外观及批次稳定性" },
+            { id: "sugar", name: "白砂糖（批）", dataKey: "白砂糖", unit: "批", color: "#00B42A", desc: "微生物、感官、性状与糖源稳定性" },
+            { id: "flavor", name: "香精（批）", dataKey: "香精", unit: "批", color: "#F77234", desc: "香气、密度、色度、纯净度画像" },
+            { id: "gradeSugar", name: "一级糖（批）", dataKey: "一级糖", unit: "批", color: "#3491FA", desc: "等级、色值、浊度、水分与批次放行" },
+            { id: "liquidSugar", name: "液体糖（批）", dataKey: "液体糖（批）", unit: "批", color: "#7BC616", desc: "糖度、pH、菌落总数与液糖批次" }
+        ];
+
+        const packageVersionCounts = {
+            can: 1,
+            lid: 3,
+            carton: 2
+        };
+
+        const canVersionLabels = [
+            "空罐/普通型/250ML/31周年版/无顶盖",
+            "空罐/普通型/250ML/2026年1元乐享-新疆青海/无顶盖",
+            "空罐/普通型/250ML/2026扫码1元乐享-云贵/无顶盖"
+        ];
+
+        const canVersionTrendSamples = [
+            [100, 98, 96, 100, 99, 100],
+            [97, 99, 100, 98, 96, 99],
+            [95, 97, 98, 100, 99, 97]
+        ];
+
+        const cartonVersionLabels = ["V6 箱唛版", "V7 条码校验版"];
+        const lidVersionLabels = ["普通型顶盖", "强化型顶盖", "战马顶盖"];
+
+        const contentSampleCounts = {
+            "红牛普通": 12,
+            "红牛强化": 9,
+            "战马": 10
+        };
+
+        const materialSourceMap = {
+            can: ["空罐卷封检验报告", "红牛标签标识检验报告", "原材料质量异常处置", "战马空罐质量检验报告"],
+            lid: ["顶盖/底盖检验报告", "红牛标签标识检验报告", "原材料质量异常处置"],
+            carton: ["纸皮进货检验报告", "原材料质量异常处置"],
+            film: ["热缩膜检验报告", "原材料质量异常处置"],
+            sugar: ["白砂糖微生物检验报告", "原材料质量异常处置"],
+            flavor: ["香精入厂检验记录"],
+            gradeSugar: ["一级糖理化检验报告", "一级糖复检单"],
+            liquidSugar: ["液体糖入厂检测记录", "液体糖复检单"]
+        };
+
+        const metricKeys = {
+            "送检数量": "submitted",
+            "已检数量": "inspected",
+            "合格数": "passed",
+            "合格率": "pass-rate",
+            "复检中": "recheck-pending",
+            "复检合格": "recheck-passed",
+            "复检不合格": "recheck-failed",
+            "异常处置数": "abnormal-actions",
+            "版本数量": "version-count",
+            "供应商合格率": "supplier-pass-rate"
+        };
+
+        const metricRuleText = {
+            "送检数量": "取顶部日期范围、供应商范围内的当前物料记录。空罐红牛取红牛空罐信息确认单包号数量，战马取战马空罐质量检验报告包号数量；顶盖按托数，纸皮和热缩膜按单据数，糖类、香精按批次或单据数统计。",
+            "已检数量": "在送检范围内，取来源表单状态为已完成/已审核，且已有有效检验结果的数据数量。",
+            "合格数": "在已检数据中取最终有效检验结果为合格的数据；存在复检且复检完成时，以复检结果作为最终结果。",
+            "合格率": "合格率 = 合格数 / 已检数量 × 100%；已检数量为 0 时显示 --。",
+            "复检中": "取初检不合格且存在复检单未完成的数据数量。",
+            "复检合格": "取复检已完成且复检结果为合格的数据数量。",
+            "复检不合格": "取复检已完成且复检结果为不合格的数据数量。",
+            "异常处置数": "取来源单据为原材料质量异常处置，或风险/原因判定为质量异常的数据数量。",
+            "版本数量": "空罐、顶盖按红牛标签标识检验报告中的标签/版本字段去重统计。",
+            "供应商合格率": "按供应商分组计算，供应商合格率 = 该供应商合格数 / 该供应商已检数量 × 100%；分母为 0 时显示 --。"
+        };
+
+        const annotationLogic = {
+            "page-head": {
+                tag: "A1",
+                title: "页面标题与合格率标签",
+                desc: "展示当前页面名称、页面说明和合格率口径提示。",
+                sources: ["原材料看板取值逻辑.md"],
+                rules: ["首页显示原材料看板；进入详情页后标题切换为当前物料名称。", "合格率标签固定提示公式：合格数量 / 已完成检测数量。"],
+                interaction: "随首页和详情页路由自动切换，不单独参与筛选。"
+            },
+            "global-filters": {
+                tag: "A2",
+                title: "全局筛选区",
+                desc: "控制首页卡片、详情 KPI、趋势图、指标监控、补充分析和明细表的数据范围。",
+                sources: ["各物料对应来源表单的日期字段、供应商字段"],
+                rules: ["开始日期默认当月 1 号，结束日期默认当前日期。", "日期范围使用各来源单据的检验日期/到货日期字段；供应商使用来源单据供应商字段。", "所有表单仅取已完成/已审核状态数据；周期类型只影响趋势类图表横轴分组。"],
+                interaction: "修改任一筛选条件后刷新当前首页或详情页数据；标注模式下点击筛选区只选中标注，不改变筛选值。"
+            },
+            "content-samples": {
+                tag: "B9",
+                title: "内容物留样数",
+                desc: "按产品类型展示内容物留样数量。",
+                sources: ["内容物留样记录"],
+                rules: ["受顶部日期范围影响，按内容物留样记录的留样日期过滤。", "按红牛普通、红牛强化、战马分组统计留样份数。"],
+                interaction: "当前为首页展示模块，不跳转详情页。"
+            },
+            "detail-kpis": {
+                tag: "C1",
+                title: "详情 KPI 模块",
+                desc: "进入物料详情后复用首页当前物料的 KPI 口径。",
+                sources: ["当前物料对应来源表单"],
+                rules: ["送检数量、已检数量、合格数、合格率、复检中、复检合格、复检不合格、异常处置数与首页同口径。", "空罐、顶盖额外展示版本数量；其他物料展示供应商合格率。"],
+                interaction: "点击详情 KPI 标注时只展示规则；返回首页按钮保持原跳转行为。"
+            },
+            "detail-trend": {
+                tag: "C2",
+                title: "检测合格率趋势",
+                desc: "按周期展示当前物料合格率变化。",
+                sources: ["当前物料对应来源表单"],
+                rules: ["先按顶部筛选和已完成/已审核状态过滤，再按周期类型切分横轴。", "每个周期合格率 = 周期内合格数 / 周期内已检数量 × 100%；分母为 0 时显示 --。", "空罐支持综合/版本切换，顶盖支持综合/产线/版本切换，纸皮支持综合/版本/供应商/供应商版本切换，热缩膜、白砂糖、香精、一级糖、液体糖支持综合/供应商切换。"],
+                interaction: "顶盖使用右上角综合、产线、版本三段按钮切换；其他物料按各自统计方式切换后重新计算并绘图。"
+            },
+            "defect-type": {
+                tag: "C3",
+                title: "不良类型分布",
+                desc: "展示当前物料不良类型的构成。",
+                sources: ["当前物料来源表单", "原材料质量异常处置"],
+                rules: ["取当前筛选范围内最终检验结果为不合格或质量异常的数据。", "按产品类型/不良类型字段分组计数。"],
+                interaction: "香精、一级糖、液体糖详情页按原型隐藏该补充分析模块。"
+            },
+            "defect-reason": {
+                tag: "C4",
+                title: "不良原因",
+                desc: "展示当前物料异常原因分布。",
+                sources: ["当前物料来源表单", "原材料质量异常处置"],
+                rules: ["取当前筛选范围内不合格或质量异常数据。", "按原因字段分组计数；原因为空时归为未填写。"],
+                interaction: "随顶部筛选和当前物料变化自动刷新。"
+            },
+            "defect-line": {
+                tag: "C5",
+                title: "不良类型线别/车间",
+                desc: "展示不良记录在线别或车间维度上的分布。",
+                sources: ["当前物料来源表单", "原材料质量异常处置"],
+                rules: ["取当前筛选范围内不合格或质量异常数据。", "空罐、顶盖、纸皮、热缩膜按线别字段分组；白砂糖按车间字段分组。"],
+                interaction: "标题根据当前物料自动调整。"
+            },
+            "metric-monitor": {
+                tag: "C6",
+                title: "检测指标监控",
+                desc: "展示当前物料关键检测指标和指标趋势。",
+                sources: ["当前物料对应检验报告明细字段"],
+                rules: ["上方指标卡取当前物料检测字段的均值、最大值、最小值、波动偏差或原型指定展示值。", "下方折线图按批次顺序展示右上角选择指标的实测值，并绘制上下限；均值 = Σx / n，波动偏差按当前原型样例字段展示。", "纸皮、热缩膜等按原型要求展示指定指标；液体糖和一级糖只在广东基地显示。"],
+                interaction: "切换趋势指标或产品类型后，重新计算指标卡和折线图。"
+            },
+            "detail-table": {
+                tag: "C7",
+                title: "明细数据",
+                desc: "展示当前物料在顶部筛选范围内的来源单据明细。",
+                sources: ["当前物料对应来源表单"],
+                rules: ["仅展示已完成/已审核状态的数据。", "空罐列顺序：单据编号、生产批号、包号、总托数、空罐线别、空罐版本、检验日期、总报告状态、通知单状态、送检来源单号、产品大类、产品类型、确认人、状态、制单人、创建时间、详情；删除备注列。", "顶盖列顺序：单据编号、生产批号、包号、总托数、供应商、产品大类、产品类型、检验结果、通知单状态、复检结果、检验日期、单据类型、原单据编号、检验员、单据状态、来源送检单号、异常处理单号、制单人、创建时间、详情。", "纸皮列顺序：单据编号、供应商、流水号、产品大类、产品类型、纸皮版本、检验日期、检验结果、复检结果、检验员、单据状态、创建时间、创建人、详情；删除备注列。", "热缩膜列顺序：单据编号、生产大类、类型、系统流水号、到货数量、供应商、样品时间、检验结果、复检结果、检验日期、检验员、单据状态、制单人、创建时间、详情；删除备注列。", "白砂糖列顺序：单据编号、取样日期、生产批号、进货总数量(kg)、总批数、检验日期、检验结果、复检结果、审批状态、制单人、创建时间、详情；删除备注列。", "香精列顺序：单据编号、年检状态、销毁状态、审批状态、供应商、厂商、检验日期、生产日期、生产批号、外观、色度、Brix(%)、密度、香气、检验结果、复检结果、取样人、检验员、香味、铅(mg/kg)、砷(mg/kg)、年检结果、年检复检、留样重量(ml)、留样日期、销毁人、销毁日期、制单人、创建时间、详情；删除销毁备注和备注列。", "一级糖列顺序：单据编号、原厂批次、厂商、检验日期、内部批次、检验状态、检验结果、复检结果、审批状态、制单人、创建时间、详情；删除备注列。", "液体糖列顺序：单据编号、批号、生产日期、检验日期、检验结果、复检结果、报告人、单据状态、制单人、创建时间、详情；删除备注列。", "所有物料的详情均固定为最后一列，用于进入原始业务单据查看。"],
+                interaction: "点击详情查看对应单据；标注模式下点击表格只切换标注说明。"
+            }
+        };
+
+        const rows = [
+            { id: "HB-RM-202606-001", material: "空罐", supplier: "湖北制罐一厂", date: "2026-06-01", qty: 12, unit: "万罐", project: "罐体高度", value: "110.5mm", spec: "109.5-111.5mm", result: "合格", status: "合格", reason: "-", owner: "唐兴", doc: "空罐卷封检验报告", pass: true, risk: "", score: 99.1, recheck: { count: 1, result: "合格", closed: true } },
+            { id: "HB-RM-202606-002", material: "顶盖（托）", supplier: "华中制盖", date: "2026-06-02", qty: 18, unit: "万托", project: "启破力", value: "24.1N", spec: "22-28N", result: "合格", status: "合格", reason: "-", owner: "孙连杰", doc: "顶盖检验报告", pass: true, risk: "", score: 99.4 },
+            { id: "HB-RM-202606-003", material: "空罐", supplier: "湖北制罐一厂", date: "2026-06-03", qty: 9, unit: "万罐", project: "迭接率", value: "51.2%", spec: ">=50%", result: "待复检", status: "待复检", reason: "连续接近下限", owner: "杨可", doc: "原材料复检单", pass: false, risk: "指标临界", score: 96.2, recheck: { count: 1, result: "待完成", closed: false } },
+            { id: "HB-RM-202606-004", material: "纸皮", supplier: "武汉纸品", date: "2026-06-04", qty: 6, unit: "万张", project: "外观质量", value: "2 起", spec: "0 起", result: "不合格", status: "不合格", reason: "外观不良", owner: "唐兴", doc: "原料质量异常处置", pass: false, risk: "质量异常", score: 91.8 },
+            { id: "HB-RM-202606-005", material: "香精", supplier: "上海宝开", date: "2026-06-05", qty: 2.6, unit: "吨", project: "香气/密度/色度", value: "96/94/95", spec: ">=90", result: "合格", status: "合格", reason: "-", owner: "孙连杰", doc: "香精入厂检测记录", pass: true, risk: "", score: 99.6 },
+            { id: "HB-RM-202606-006", material: "白砂糖", supplier: "广西糖业", date: "2026-06-06", qty: 11, unit: "吨", project: "细菌总数", value: "42 CFU/100mL", spec: "<=100", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "白砂糖微生物检验报告", pass: true, risk: "", score: 98.9 },
+            { id: "HB-RM-202606-007", material: "热缩膜（单）", supplier: "武汉包材", date: "2026-06-07", qty: 4, unit: "万卷", project: "收缩率", value: "68%", spec: "65-72%", result: "合格", status: "合格", reason: "-", owner: "唐兴", doc: "热缩膜检验报告", pass: true, risk: "", score: 98.7, recheck: { count: 1, result: "合格", closed: true } },
+            { id: "HB-RM-202606-008", material: "顶盖（托）", supplier: "华中制盖", date: "2026-06-08", qty: 16, unit: "万托", project: "外径尺寸", value: "52.8mm", spec: "52.2-52.7mm", result: "待评估", status: "待评估", reason: "尺寸偏差", owner: "孙连杰", doc: "顶盖检验报告", pass: false, risk: "指标临界", score: 96.8 },
+            { id: "HB-RM-202606-009", material: "空罐", supplier: "长江制罐", date: "2026-06-09", qty: 7, unit: "万罐", project: "皱纹度", value: "11%", spec: "<=10%", result: "不合格", status: "不合格", reason: "皱纹度超限", owner: "杨可", doc: "原料质量异常处置", pass: false, risk: "质量异常", score: 92.4 },
+            { id: "HB-RM-202606-010", material: "液体糖（批）", supplier: "湖北糖液", date: "2026-06-10", qty: 16, unit: "批", project: "糖度", value: "67.2 Brix", spec: "66-68 Brix", result: "合格", status: "合格", reason: "-", owner: "唐兴", doc: "液体糖入厂检测记录", pass: true, risk: "", score: 98.6 },
+            { id: "HB-RM-202606-011", material: "香精", supplier: "郑州瑞斯福", date: "2026-06-11", qty: 2.1, unit: "吨", project: "纯净度", value: "89", spec: ">=90", result: "待复检", status: "待复检", reason: "纯净度临界", owner: "孙连杰", doc: "香精入厂检测记录", pass: false, risk: "待复检", score: 96.1, recheck: { count: 1, result: "待完成", closed: false } },
+            { id: "HB-RM-202606-012", material: "纸皮", supplier: "武汉纸品", date: "2026-06-12", qty: 8, unit: "万张", project: "尺寸", value: "达标", spec: "标准范围", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "纸皮进货检验报告", pass: true, risk: "", score: 99.2 },
+            { id: "HB-RM-202606-013", material: "一级糖", supplier: "广西糖业", date: "2026-06-13", qty: 8, unit: "吨", project: "色值", value: "38 IU", spec: "<=45 IU", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "一级糖理化检验报告", pass: true, risk: "", score: 98.4 },
+            { id: "HB-RM-202606-014", material: "白砂糖", supplier: "广西糖业", date: "2026-06-14", qty: 9, unit: "吨", project: "感官/性状", value: "正常", spec: "正常", result: "合格", status: "合格", reason: "-", owner: "孙连杰", doc: "白砂糖检验报告", pass: true, risk: "", score: 99.0 },
+            { id: "HB-RM-202606-015", material: "空罐", supplier: "长江制罐", date: "2026-06-15", qty: 11, unit: "万罐", project: "标签标识", value: "V3 换版", spec: "已确认", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "标签标识检验报告", pass: true, risk: "", score: 98.8 },
+            { id: "HB-RM-202606-016", material: "白砂糖", supplier: "广西糖业", date: "2026-06-16", qty: 10, unit: "吨", project: "细菌总数", value: "56 CFU/100mL", spec: "<=100", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "白砂糖微生物检验报告", pass: true, risk: "", score: 98.7 },
+            { id: "HB-RM-202606-017", material: "白砂糖", supplier: "湖北糖业", date: "2026-06-17", qty: 9, unit: "吨", project: "细菌总数", value: "47 CFU/100mL", spec: "<=100", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "白砂糖微生物检验报告", pass: true, risk: "", score: 98.9 },
+            { id: "HB-RM-202606-018", material: "一级糖", supplier: "湖北糖业", date: "2026-06-18", qty: 7, unit: "吨", project: "浊度", value: "12 NTU", spec: "<=10 NTU", result: "待复检", status: "待复检", reason: "浊度临界", owner: "孙连杰", doc: "一级糖复检单", pass: false, risk: "待复检", score: 95.8, recheck: { count: 1, result: "待完成", closed: false } },
+            { id: "HB-RM-202606-019", material: "白砂糖", supplier: "湖北糖业", date: "2026-06-19", qty: 10, unit: "吨", project: "细菌总数", value: "108 CFU/100mL", spec: "<=100", result: "不合格", status: "不合格", reason: "细菌总数超限", owner: "杨可", doc: "原料质量异常处置", pass: false, risk: "质量异常", score: 91.6 },
+            { id: "HB-RM-202606-020", material: "顶盖（托）", supplier: "江汉制盖", date: "2026-06-20", qty: 12, unit: "万托", project: "全开力", value: "29.1N", spec: "24-30N", result: "合格", status: "合格", reason: "-", owner: "孙连杰", doc: "顶盖检验报告", pass: true, risk: "", score: 98.8 },
+            { id: "HB-RM-202606-021", material: "纸皮", supplier: "荆楚纸业", date: "2026-06-21", qty: 7, unit: "万张", project: "耐破强度", value: "合格", spec: ">=720kPa", result: "合格", status: "合格", reason: "-", owner: "唐兴", doc: "纸皮进货检验报告", pass: true, risk: "", score: 98.4 },
+            { id: "HB-RM-202606-022", material: "热缩膜（单）", supplier: "荆楚包材", date: "2026-06-22", qty: 5, unit: "万卷", project: "厚度", value: "45um", spec: "43-47um", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "热缩膜检验报告", pass: true, risk: "", score: 98.6 },
+            { id: "HB-RM-202606-023", material: "热缩膜（单）", supplier: "武汉包材", date: "2026-06-23", qty: 4, unit: "万卷", project: "外观质量", value: "划伤 1 起", spec: "0 起", result: "不合格", status: "不合格", reason: "膜面划伤", owner: "唐兴", doc: "原料质量异常处置", pass: false, risk: "质量异常", score: 92.2 },
+            { id: "HB-RM-202606-024", material: "液体糖（批）", supplier: "华中糖浆", date: "2026-06-24", qty: 14, unit: "批", project: "pH", value: "4.8", spec: "4.5-5.2", result: "合格", status: "合格", reason: "-", owner: "孙连杰", doc: "液体糖入厂检测记录", pass: true, risk: "", score: 99.0 },
+            { id: "HB-RM-202606-025", material: "液体糖（批）", supplier: "湖北糖液", date: "2026-06-25", qty: 12, unit: "批", project: "菌落总数", value: "118 CFU/mL", spec: "<=100", result: "待复检", status: "待复检", reason: "菌落总数临界", owner: "杨可", doc: "液体糖复检单", pass: false, risk: "待复检", score: 95.1, recheck: { count: 1, result: "待完成", closed: false } },
+            { id: "HB-RM-202606-026", material: "一级糖", supplier: "广西糖业", date: "2026-06-26", qty: 9, unit: "吨", project: "水分", value: "0.04%", spec: "<=0.06%", result: "合格", status: "合格", reason: "-", owner: "唐兴", doc: "一级糖理化检验报告", pass: true, risk: "", score: 99.2 },
+            { id: "HB-RM-202606-027", material: "香精", supplier: "上海宝开", date: "2026-06-27", qty: 2.4, unit: "吨", project: "色度", value: "95", spec: ">=90", result: "合格", status: "合格", reason: "-", owner: "孙连杰", doc: "香精入厂检测记录", pass: true, risk: "", score: 99.1 },
+            { id: "HB-RM-202606-028", material: "空罐", supplier: "湖北制罐一厂", date: "2026-06-28", qty: 10, unit: "万罐", project: "罐钩顶隙", value: "0.19mm", spec: "0.15-0.25mm", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "空罐卷封检验报告", pass: true, risk: "", score: 99.0 },
+            { id: "HB-RM-202606-029", material: "顶盖（托）", supplier: "江汉制盖", date: "2026-06-29", qty: 15, unit: "万托", project: "干膜重量", value: "5.4mg", spec: "5.5-7.0mg", result: "不合格", status: "不合格", reason: "干膜重量偏低", owner: "孙连杰", doc: "原料质量异常处置", pass: false, risk: "质量异常", score: 91.9 },
+            { id: "HB-RM-202606-030", material: "纸皮", supplier: "荆楚纸业", date: "2026-06-30", qty: 8, unit: "万张", project: "尺寸", value: "达标", spec: "标准范围", result: "合格", status: "合格", reason: "-", owner: "杨可", doc: "纸皮进货检验报告", pass: true, risk: "", score: 98.9 }
+        ];
+
+        rows.filter(row => row.material === "空罐").forEach((row, index) => {
+            row.version = canVersionLabels[index % canVersionLabels.length];
+        });
+        rows.filter(row => row.material === "纸皮").forEach((row, index) => {
+            row.version = cartonVersionLabels[index % cartonVersionLabels.length];
+        });
+        rows.filter(row => row.material === "顶盖（托）").forEach((row, index) => {
+            row.version = lidVersionLabels[index % lidVersionLabels.length];
+        });
+
+        const lineLabels = ["一线", "二线", "三线"];
+        const lidLineLabels = ["一线", "二线", "三线", "四线"];
+        const workshopLabels = ["一车间", "二车间", "三车间"];
+        const productTypeLabels = ["红牛普通", "红牛强化", "战马"];
+        const filmProductTypeLabels = ["普通型", "强化型", "PE彩膜"];
+        const supplierTrendMaterialIds = ["film", "sugar", "flavor", "gradeSugar", "liquidSugar"];
+        rows.forEach((row, index) => {
+            row.line = lineLabels[index % lineLabels.length];
+            row.workshop = workshopLabels[index % workshopLabels.length];
+            row.productType = productTypeLabels[index % productTypeLabels.length];
+        });
+        rows.filter(row => row.material === "顶盖（托）").forEach((row, index) => {
+            row.line = lidLineLabels[index % lidLineLabels.length];
+        });
+        rows.filter(row => row.material === "热缩膜（单）").forEach((row, index) => {
+            row.productType = filmProductTypeLabels[index % filmProductTypeLabels.length];
+        });
+
+        const canMetrics = {
+            "罐体高度": { unit: "mm", min: 109.5, max: 111.5, values: [110.1, 110.4, 110.5, 110.8, 110.2, 110.6] },
+            "翻边尺寸": { unit: "mm", min: 2.35, max: 2.65, values: [2.48, 2.51, 2.57, 2.61, 2.46, 2.54] },
+            "强化型顶盖启破力": { unit: "N", min: 22, max: 28, values: [24.1, 24.8, 25.4, 27.6, 26.2, 24.9] },
+            "迭接率": { unit: "%", min: 50, max: 60, values: [53.2, 52.4, 51.2, 54.1, 55.3, 52.8] },
+            "迭接长度": { unit: "mm", min: 1.1, max: 1.3, values: [1.18, 1.21, 1.16, 1.24, 1.27, 1.19] },
+            "皱纹度": { unit: "%", min: 0, max: 10, values: [6, 8, 7, 11, 9, 7] },
+            "罐钩顶隙": { unit: "mm", min: 0.15, max: 0.25, values: [0.18, 0.19, 0.17, 0.23, 0.21, 0.18] },
+            "盖钩顶隙": { unit: "mm", min: 0.12, max: 0.22, values: [0.16, 0.17, 0.15, 0.20, 0.19, 0.16] }
+        };
+
+        const monitorMetrics = {
+            can: canMetrics,
+            lid: {
+                "外径尺寸": { unit: "mm", min: 52.2, max: 52.7, values: [52.42, 52.55, 52.68, 52.80, 52.61, 52.48] },
+                "埋头度": { unit: "mm", min: 6.7, max: 7.3, values: [6.88, 6.94, 7.06, 7.18, 7.11, 6.98] },
+                "钩边高度": { unit: "mm", min: 1.95, max: 2.15, values: [2.01, 2.05, 2.08, 2.12, 2.03, 2.06] },
+                "干膜重量": { unit: "mg", min: 5.5, max: 7.0, values: [5.9, 6.2, 6.4, 6.8, 6.1, 5.4] },
+                "启破力": { unit: "N", min: 22, max: 28, values: [24.1, 25.2, 26.4, 27.8, 25.9, 24.7] },
+                "全开力": { unit: "N", min: 24, max: 30, values: [26.1, 27.3, 29.2, 31.2, 28.6, 27.8] }
+            },
+            carton: {
+                "纸皮尺寸": { unit: "mm", min: 598, max: 604, values: [602, 600, 601, 603, 599, 601] },
+                "外观不良": { unit: "起", min: 0, max: 0, values: [1, 0, 2, 1, 0, 1] },
+                "耐破强度": { unit: "kPa", min: 720, max: 900, values: [748, 762, 735, 780, 772, 786] },
+                "边压强度": { unit: "N/m", min: 5600, max: 6800, values: [5900, 6120, 6040, 6330, 6180, 6410] }
+            },
+            film: {
+                "热缩膜厚度": { unit: "um", min: 43, max: 47, values: [44.2, 45.0, 45.3, 46.1, 44.8, 45.5] },
+                "宽度": { unit: "mm", min: 520, max: 530, values: [524, 526, 528, 527, 525, 526] },
+                "筒内径": { unit: "mm", min: 75, max: 80, values: [76.2, 77.1, 78.0, 77.6, 76.8, 77.4] },
+                "热缩膜净重": { unit: "kg", min: 18, max: 22, values: [19.2, 20.1, 20.4, 21.0, 19.8, 20.3] }
+            },
+            sugar: {
+                "细菌总数": { unit: "CFU/100mL", min: 0, max: 100, values: [42, 56, 47, 61, 108, 38] },
+                "水分": { unit: "%", min: 0, max: 0.06, values: [0.04, 0.05, 0.04, 0.05, 0.06, 0.04] },
+                "色值": { unit: "IU", min: 0, max: 60, values: [42, 39, 44, 41, 48, 43] },
+                "感官评分": { unit: "分", min: 90, max: 100, values: [96, 97, 95, 96, 92, 98] }
+            },
+            gradeSugar: {
+                "色值": { unit: "IU", min: 0, max: 45, values: [38, 36, 40, 41, 37, 39] },
+                "浊度": { unit: "NTU", min: 0, max: 10, values: [8, 9, 12, 7, 8, 9] },
+                "水分": { unit: "%", min: 0, max: 0.06, values: [0.04, 0.05, 0.04, 0.04, 0.05, 0.04] },
+                "不溶物": { unit: "mg/kg", min: 0, max: 20, values: [12, 14, 18, 15, 13, 11] }
+            },
+            flavor: {
+                "外观": { unit: "", min: 1, max: 1, values: [1, 1, 1, 1, 1, 1], displayValue: "√", specLabel: "合格" },
+                "色度": { unit: "", min: 40, max: 100, values: [80, 79, 81, 80, 82, 80], displayValue: "80.00", specLabel: ">40" },
+                "Brix(%)": { unit: "%", min: 39.1, max: 41.1, values: [40.5, 40.3, 40.8, 40.6, 40.4, 40.5], displayValue: "40.50", specLabel: "39.1~41.1" },
+                "密度(g/cm³)": { unit: "g/cm³", min: 0.9108, max: 0.9308, values: [0.9199, 0.9204, 0.9188, 0.9211, 0.9192, 0.9199], displayValue: "0.9199", specLabel: "0.9108~0.9308" }
+            },
+            liquidSugar: {
+                "干物质（固形物）含量": { unit: "%", min: 50, max: 54, values: [51.5, 51.2, 51.7, 51.4, 51.8, 51.5], displayValue: "51.5", specLabel: "52(±2)", result: "合格" },
+                "干物质中蔗糖分": { unit: "%", min: 99, max: 102, values: [100.69, 100.42, 100.88, 100.55, 100.73, 100.69], displayValue: "100.69", specLabel: "≥99", result: "合格" },
+                "干物质中还原糖分": { unit: "%", min: 0, max: 0.05, values: [0.019, 0.018, 0.021, 0.020, 0.017, 0.019], displayValue: "0.019", specLabel: "≤0.05", result: "合格" },
+                "pH": { unit: "", min: 5.2, max: 8.5, values: [6.72, 6.68, 6.77, 6.74, 6.70, 6.72], displayValue: "6.72", specLabel: "5.2~8.5", result: "合格" },
+                "色值": { unit: "IU", min: 0, max: 25, values: [5.3, 5.1, 5.6, 5.4, 5.2, 5.3], displayValue: "5.30", specLabel: "≤25", result: "合格" },
+                "电导率": { unit: "μs/cm", min: 0, max: 25, values: [6.49, 6.2, 6.8, 6.5, 6.3, 6.49], displayValue: "6.49", specLabel: "≤25", result: "合格" },
+                "混浊度": { unit: "MAU", min: 0, max: 30, values: [1.67, 1.55, 1.72, 1.69, 1.63, 1.67], displayValue: "1.67", specLabel: "≤30", result: "合格" }
+            }
+        };
+
+        const monitorProfiles = {
+            can: { metaTitle: "版本与检测频次", metricTitle: "卷封关键指标", defaultMetric: "翻边尺寸", tiles: [["当前标签版本", "V3", "在用 1 个版本 · 换版类型：图文升级"], ["换版频次", "3 次", "本年度 · 制罐一线 2 次 / 二线 1 次"], ["加严检测频次", "5 次", "临界批次触发 · 已完成 4 次"]] },
+            lid: { metaTitle: "规格与检测频次", metricTitle: "顶盖关键指标", defaultMetric: "外径尺寸", tiles: [["盖型版本", "202 盖型", "当前在用 · 强化型拉环"], ["换型频次", "2 次", "本年度 · 制盖一线 1 次 / 二线 1 次"], ["加严检测频次", "4 次", "尺寸或开启力临界时触发"]] },
+            carton: { metaTitle: "版面与检测频次", metricTitle: "纸皮关键指标", defaultMetric: "纸皮尺寸", tiles: [["当前版面", "V6", "箱唛与条码同步校验"], ["换版频次", "2 次", "本年度 · 图文升级 1 次 / 条码升级 1 次"], ["外观抽检频次", "6 次", "印刷偏色与破损专项"]] },
+            film: { metaTitle: "规格与检测频次", metricTitle: "热缩膜关键指标", defaultMetric: "热缩膜厚度", tiles: [["当前膜型", "45um", "单卷膜 · 常温仓储"], ["换版频次", "1 次", "本年度 · 供应商工艺调整"], ["加严检测频次", "3 次", "膜面划伤或厚度波动触发"]] },
+            sugar: { metaTitle: "等级与检测频次", metricTitle: "白砂糖关键指标", defaultMetric: "细菌总数", tiles: [["当前等级", "一级白砂糖", "到厂批次按微生物放行"], ["复检触发", "2 次", "细菌总数或感官异常触发"], ["微生物检测", "5 次", "本期批批检测"]] },
+            gradeSugar: { metaTitle: "等级与检测频次", metricTitle: "一级糖关键指标", defaultMetric: "色值", tiles: [["当前等级", "一级糖", "按色值、浊度、水分放行"], ["复检触发", "1 次", "浊度临界批次触发"], ["理化检测", "3 次", "色值/水分/不溶物"]] },
+            flavor: { metaTitle: "风味与检测频次", metricTitle: "香精关键指标", defaultMetric: "色度", tiles: [["当前配方", "F-26", "香气、密度、色度联合评价"], ["复检触发", "1 次", "纯净度临界批次触发"], ["画像检测", "4 次", "厂商批次画像对比"]] },
+            liquidSugar: { metaTitle: "液糖与检测频次", metricTitle: "液体糖关键指标", defaultMetric: "干物质（固形物）含量", tiles: [["当前糖浆规格", "67 Brix", "按批检测糖度、pH、菌落"], ["复检触发", "1 次", "菌落总数临界批次触发"], ["到厂检测", "3 次", "液糖批次专项"]] }
+        };
+
+        const statusClass = {
+            "合格": "success",
+            "不合格": "danger",
+            "待复检": "warning",
+            "待评估": "warning"
+        };
+        let charts = {};
+        let currentMaterialId = "";
+
+        function unique(list, key) {
+            return [...new Set(list.map(item => item[key]))].filter(Boolean);
+        }
+
+        function materialById(id) {
+            return materials.find(item => item.id === id) || materials[0];
+        }
+
+        function formatRate(value) {
+            return Number.isFinite(value) ? value.toFixed(1) : "--";
+        }
+
+        function completedRows(list) {
+            return list.filter(row => ["合格", "不合格"].includes(row.result));
+        }
+
+        function passRate(list) {
+            const done = completedRows(list);
+            if (!done.length) return NaN;
+            return done.filter(row => row.result === "合格").length / done.length * 100;
+        }
+
+        function recheckRows(list) {
+            return list.filter(row => row.recheck);
+        }
+
+        function recheckRate(list) {
+            return list.length ? recheckRows(list).length / list.length * 100 : 0;
+        }
+
+        function metricStats(values) {
+            const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+            const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+            return { mean, min: Math.min(...values), max: Math.max(...values), deviation: Math.sqrt(variance) };
+        }
+
+        function formatMetricNumber(value, metric, forcePrecision = false) {
+            const precision = metric.unit === "%" ? 1 : 2;
+            return !forcePrecision && Number.isInteger(value) ? String(value) : value.toFixed(precision);
+        }
+
+        function getFilteredRows() {
+            const start = document.getElementById("startDate").value;
+            const end = document.getElementById("endDate").value;
+            const supplier = document.getElementById("supplierFilter").value;
+            return rows.filter(row => {
+                const dateHit = (!start || row.date >= start) && (!end || row.date <= end);
+                const supplierHit = supplier === "all" || row.supplier === supplier;
+                return dateHit && supplierHit;
+            });
+        }
+
+        function rowsForMaterial(list, material) {
+            return list.filter(row => row.material === (material.dataKey || material.name));
+        }
+
+        function toDate(value) {
+            return new Date(`${value}T00:00:00`);
+        }
+
+        function toIsoDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+        }
+
+        function addDays(date, days) {
+            const next = new Date(date);
+            next.setDate(next.getDate() + days);
+            return next;
+        }
+
+        function dateLabel(value) {
+            return value.slice(5).replace("-", "/");
+        }
+
+        function buildBuckets() {
+            const period = document.getElementById("periodType").value;
+            const start = document.getElementById("startDate").value;
+            const end = document.getElementById("endDate").value;
+            if (!start || !end || end < start) return [];
+            const buckets = [];
+            const endDate = toDate(end);
+            let cursor = toDate(start);
+            while (cursor <= endDate) {
+                const bucketStart = new Date(cursor);
+                let bucketEnd = new Date(cursor);
+                if (period === "week") bucketEnd = addDays(bucketStart, 6);
+                if (period === "month") bucketEnd = new Date(bucketStart.getFullYear(), bucketStart.getMonth() + 1, 0);
+                if (bucketEnd > endDate) bucketEnd = new Date(endDate);
+                const startIso = toIsoDate(bucketStart);
+                const endIso = toIsoDate(bucketEnd);
+                const label = period === "day" ? dateLabel(startIso) : period === "week" ? `${dateLabel(startIso)}-${dateLabel(endIso)}` : `${bucketStart.getFullYear()}/${String(bucketStart.getMonth() + 1).padStart(2, "0")}`;
+                buckets.push({ start: startIso, end: endIso, label });
+                cursor = addDays(bucketEnd, 1);
+            }
+            return buckets;
+        }
+
+        function supplierStats(list) {
+            return unique(list, "supplier").map(name => {
+                const supplierRows = list.filter(row => row.supplier === name);
+                return { name, total: supplierRows.length, rate: passRate(supplierRows) };
+            }).sort((a, b) => (b.total - a.total) || String(a.name).localeCompare(String(b.name), "zh-CN"));
+        }
+
+        function materialStats(material, list = getFilteredRows()) {
+            const materialRows = rowsForMaterial(list, material);
+            const doneRows = completedRows(materialRows);
+            const failed = materialRows.filter(row => row.result === "不合格" || row.risk === "质量异常");
+            const rechecks = recheckRows(materialRows);
+            return {
+                total: materialRows.length,
+                submitted: materialRows.length,
+                inspected: doneRows.length,
+                passed: doneRows.filter(row => row.result === "合格").length,
+                passRate: passRate(materialRows),
+                failed: failed.length,
+                rechecks: rechecks.length,
+                recheckRate: recheckRate(materialRows),
+                recheckPending: rechecks.filter(row => row.recheck && !row.recheck.closed).length,
+                recheckPassed: rechecks.filter(row => row.recheck && row.recheck.result === "合格").length,
+                recheckFailed: rechecks.filter(row => row.recheck && row.recheck.result === "不合格").length,
+                abnormalActions: materialRows.filter(row => row.risk === "质量异常" || row.doc.includes("异常处置")).length,
+                suppliers: supplierStats(materialRows)
+            };
+        }
+
+        function infoTag(text) {
+            return `<span class="info-tag">${text}</span>`;
+        }
+
+        function escapeAttr(value) {
+            return String(value ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function annotationAttrs(config) {
+            if (!config) return "";
+            return Object.entries(config).map(([key, value]) => ` data-${key}="${escapeAttr(value)}"`).join("");
+        }
+
+        function materialSources(material) {
+            return materialSourceMap[material.id] || ["当前物料对应来源表单"];
+        }
+
+        function metricAnnotation(material, label, scope = "home") {
+            const key = metricKeys[label] || label;
+            const prefix = scope === "detail" ? "detail-kpi" : `home-${material.id}`;
+            const tagPrefix = scope === "detail" ? "C1" : `B${materials.findIndex(item => item.id === material.id) + 1}`;
+            const index = Object.keys(metricKeys).indexOf(label) + 1;
+            return {
+                "annotation-id": `${prefix}-${key}`,
+                "annotation-label": `${tagPrefix}-${index > 0 ? index : "X"}`,
+                "annotation-title": `${material.name} / ${label}`,
+                "annotation-desc": `${scope === "detail" ? "详情页" : "首页"}当前物料的 ${label} 指标。`,
+                "annotation-sources": materialSources(material).join("；"),
+                "annotation-rules": metricRuleText[label] || "按当前物料对应来源单据的有效字段统计，状态限定为已完成/已审核，日期和供应商受顶部筛选影响。",
+                "annotation-interaction": scope === "detail" ? "详情页 KPI 仅展示当前物料取值，点击标注显示取值规则。" : "点击物料卡进入对应详情页；标注模式下点击只选中取值说明。"
+            };
+        }
+
+        function monitorAnnotation(material, label, index = 1) {
+            const key = String(label).replace(/[^\w\u4e00-\u9fa5]+/g, "-");
+            return {
+                "annotation-id": `monitor-${material.id}-${key}`,
+                "annotation-label": `C6-${index}`,
+                "annotation-title": `${material.name}检测指标 / ${label}`,
+                "annotation-desc": `展示${label}的当前统计值或检测值。`,
+                "annotation-sources": materialSources(material).join("；"),
+                "annotation-rules": "取当前物料对应检验报告中的同名检测字段；受顶部日期、供应商筛选影响，仅取已完成/已审核状态。数值类指标按有效数值计算均值、最大值、最小值和波动偏差；合格/不合格类字段按原始检验结论显示。",
+                "annotation-interaction": "切换趋势指标或产品类型后，当前指标格和下方折线图同步刷新。"
+            };
+        }
+
+        function tagMetricTile(label, tags, annotation) {
+            return `<div class="metric-tile"${annotationAttrs(annotation)}><div class="metric-label">${label}</div><div class="metric-tags">${tags.length ? tags.join("") : infoTag("--")}</div></div>`;
+        }
+
+        function materialSummaryTiles(material, stats, scope = "home") {
+            const isPackageMaterial = ["can", "lid"].includes(material.id);
+            const finalMetric = isPackageMaterial
+                ? metricTile("版本数量", packageVersionCounts[material.id] || 0, "个", metricAnnotation(material, "版本数量", scope))
+                : tagMetricTile("供应商合格率", stats.suppliers.map(item => infoTag(`${item.name} ${formatRate(item.rate)}%`)), metricAnnotation(material, "供应商合格率", scope));
+            return [
+                metricTile("送检数量", stats.submitted, material.unit, metricAnnotation(material, "送检数量", scope)),
+                metricTile("已检数量", stats.inspected, material.unit, metricAnnotation(material, "已检数量", scope)),
+                metricTile("合格数", stats.passed, material.unit, metricAnnotation(material, "合格数", scope)),
+                metricTile("合格率", formatRate(stats.passRate), "%", metricAnnotation(material, "合格率", scope)),
+                metricTile("复检中", stats.recheckPending, material.unit, metricAnnotation(material, "复检中", scope)),
+                metricTile("复检合格", stats.recheckPassed, material.unit, metricAnnotation(material, "复检合格", scope)),
+                metricTile("复检不合格", stats.recheckFailed, material.unit, metricAnnotation(material, "复检不合格", scope)),
+                metricTile("异常处置数", stats.abnormalActions, material.unit, metricAnnotation(material, "异常处置数", scope)),
+                finalMetric
+            ].join("");
+        }
+
+        function renderMaterialCards(list) {
+            document.getElementById("materialGrid").innerHTML = materials.map(material => {
+                const stats = materialStats(material, list);
+                return `
+                    <button class="material-card" type="button" data-module-id="material-${material.id}" data-annotation-id="home-material-${material.id}" data-annotation-label="B${materials.findIndex(item => item.id === material.id) + 1}" data-annotation-title="${escapeAttr(`${material.name}首页物料卡`)}" data-annotation-desc="${escapeAttr(`汇总展示${material.name}的送检、已检、合格、复检和异常数据。`)}" data-annotation-sources="${escapeAttr(materialSources(material).join("；"))}" data-annotation-rules="${escapeAttr("受顶部开始日期、结束日期和供应商筛选影响；仅取已完成/已审核状态数据；卡片内各 KPI 按对应单项规则计算。")}" data-annotation-interaction="${escapeAttr("点击卡片进入该物料详情页；标注模式下点击仅选中取值逻辑。")}" style="--card-color:${material.color}" onclick="openDetail('${material.id}')">
+                        <div class="material-head">
+                            <div>
+                                <div class="material-name">${material.name}</div>
+                            </div>
+                            <span class="status-pill ${stats.total ? "detail" : ""}">${stats.total ? "详情" : "无数据"}</span>
+                        </div>
+                        <div class="metric-grid">
+                            ${materialSummaryTiles(material, stats, "home")}
+                        </div>
+                    </button>
+                `;
+            }).join("");
+        }
+
+        function renderSampleModule() {
+            document.getElementById("sampleGrid").innerHTML = Object.entries(contentSampleCounts).map(([name, count]) => `
+                <div class="sample-item" data-annotation-id="content-sample-${escapeAttr(name)}" data-annotation-label="B9-${Object.keys(contentSampleCounts).indexOf(name) + 1}" data-annotation-title="${escapeAttr(`内容物留样 / ${name}`)}" data-annotation-desc="${escapeAttr(`展示${name}内容物留样份数。`)}" data-annotation-sources="内容物留样记录" data-annotation-rules="${escapeAttr("按顶部日期范围过滤内容物留样记录，再按产品类型统计留样份数。")}" data-annotation-interaction="${escapeAttr("当前仅作为首页统计展示，不跳转详情页。")}">
+                    <div class="sample-name">${name}</div>
+                    <div class="metric-value">${count}<span class="summary-unit">份</span></div>
+                </div>
+            `).join("");
+        }
+
+        function metricTile(label, value, unit, annotation) {
+            return `<div class="metric-tile"${annotationAttrs(annotation)}><div class="metric-label">${label}</div><div class="metric-value">${value}<span class="summary-unit">${unit}</span></div></div>`;
+        }
+
+        function resultBadge(row) {
+            return `<span class="result ${statusClass[row.result] || statusClass[row.status] || ""}">${row.result}</span>`;
+        }
+
+        function cssVar(name) {
+            return getComputedStyle(document.body).getPropertyValue(name).trim();
+        }
+
+        function chartBase() {
+            return {
+                tooltip: { backgroundColor: cssVar("--bg-card"), borderColor: cssVar("--border"), textStyle: { color: cssVar("--text-primary") } },
+                textStyle: { color: cssVar("--text-primary") },
+                grid: { left: 42, right: 24, top: 42, bottom: 34, containLabel: true }
+            };
+        }
+
+        function disposeChart(id) {
+            if (charts[id]) charts[id].dispose();
+            charts[id] = echarts.init(document.getElementById(id));
+            return charts[id];
+        }
+
+        function setTrendModeOptions(material) {
+            const select = document.getElementById("trendModeSelect");
+            const options = material.id === "lid"
+                ? [
+                    ["overall", "综合"],
+                    ["line", "产线"],
+                    ["version", "版本"]
+                ]
+                : material.id === "carton"
+                ? [
+                    ["overall", "综合"],
+                    ["version", "版本"],
+                    ["supplier", "供应商"],
+                    ["supplierVersion", "供应商版本"]
+                ]
+                : supplierTrendMaterialIds.includes(material.id)
+                ? [
+                    ["overall", "综合"],
+                    ["supplier", "供应商"]
+                ]
+                : [
+                    ["overall", "综合"],
+                    ["version", "按版本"]
+                ];
+            const current = select.value;
+            select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+            select.value = options.some(([value]) => value === current) ? current : "overall";
+            select.style.display = ["can", "carton", ...supplierTrendMaterialIds].includes(material.id) ? "" : "none";
+            const lidSwitch = document.getElementById("lidTrendModeSwitch");
+            lidSwitch.hidden = material.id !== "lid";
+            syncLidTrendModeSwitch();
+            document.querySelectorAll(".film-product-control").forEach(item => {
+                item.style.display = material.id === "film" ? "" : "none";
+            });
+        }
+
+        function syncLidTrendModeSwitch() {
+            const current = document.getElementById("trendModeSelect").value;
+            document.querySelectorAll("#lidTrendModeSwitch button").forEach(button => {
+                const active = button.dataset.mode === current;
+                button.classList.toggle("active", active);
+                button.setAttribute("aria-pressed", String(active));
+            });
+        }
+
+        function setLidTrendMode(mode) {
+            if (currentMaterialId !== "lid") return;
+            const select = document.getElementById("trendModeSelect");
+            select.value = mode;
+            syncLidTrendModeSwitch();
+            const material = materialById(currentMaterialId);
+            renderTrendChart(material, rowsForMaterial(getFilteredRows(), material));
+            refreshAnnotationMarkers();
+        }
+
+        function renderDetail(material) {
+            const allRows = getFilteredRows();
+            const list = rowsForMaterial(allRows, material);
+            const stats = materialStats(material, allRows);
+            currentMaterialId = material.id;
+            document.getElementById("trendCardTitle").textContent = "检测合格率趋势";
+            document.getElementById("trendCardNote").textContent = ["can", "lid", "carton", ...supplierTrendMaterialIds].includes(material.id) ? "统计方式" : "随周期类型切换横轴";
+            setTrendModeOptions(material);
+            document.getElementById("detailTitle").textContent = `${material.name}详情页`;
+            document.getElementById("detailSubtitle").textContent = material.desc;
+            document.getElementById("detailKpis").innerHTML = materialSummaryTiles(material, stats, "detail");
+            renderTrendChart(material, list);
+            const showDefectCards = !["flavor", "gradeSugar", "liquidSugar"].includes(material.id);
+            toggleDefectCards(showDefectCards);
+            if (showDefectCards) {
+                renderDefectAnalysis(list, material);
+            }
+            renderCanMonitor(material);
+            renderTable(material, list);
+        }
+
+        function toggleDefectCards(visible) {
+            document.querySelectorAll('[data-module-id^="defect-"]').forEach(card => {
+                card.classList.toggle("hidden", !visible);
+            });
+        }
+
+        function renderTrendChart(material, list) {
+            const isCan = material.id === "can";
+            const isLid = material.id === "lid";
+            const isCarton = material.id === "carton";
+            const isFilm = material.id === "film";
+            const isSupplierTrend = supplierTrendMaterialIds.includes(material.id);
+            const trendMode = document.getElementById("trendModeSelect").value;
+            const filmProductType = document.getElementById("filmProductTypeSelect").value;
+            const trendList = isFilm ? list.filter(row => row.productType === filmProductType) : list;
+            const buckets = buildBuckets().map(bucket => ({ label: bucket.label, start: bucket.start, end: bucket.end, rows: trendList.filter(row => row.date >= bucket.start && row.date <= bucket.end) }));
+            const buildSmoothSampleData = (scopedBuckets) => {
+                const values = scopedBuckets.map(bucket => {
+                    const scoredRows = bucket.rows.filter(row => Number.isFinite(row.score));
+                    if (!scoredRows.length) return null;
+                    const avg = scoredRows.reduce((sum, row) => sum + row.score, 0) / scoredRows.length;
+                    return Number(avg.toFixed(1));
+                });
+                const knownIndexes = values.map((value, index) => Number.isFinite(value) ? index : -1).filter(index => index >= 0);
+                if (!knownIndexes.length) return values;
+                return values.map((value, index) => {
+                    if (Number.isFinite(value)) return value;
+                    const prev = knownIndexes.filter(item => item < index).pop();
+                    const next = knownIndexes.find(item => item > index);
+                    if (prev == null && next == null) return null;
+                    if (prev == null) return values[next];
+                    if (next == null) return values[prev];
+                    const ratio = (index - prev) / (next - prev);
+                    return Number((values[prev] + (values[next] - values[prev]) * ratio).toFixed(1));
+                });
+            };
+            const buildSeriesData = (scopedBuckets, fallback = []) => scopedBuckets.map((bucket, index) => {
+                const value = passRate(bucket.rows);
+                const resolved = Number.isFinite(value) ? value : fallback[index % fallback.length];
+                return Number.isFinite(resolved) ? Number(resolved.toFixed(1)) : null;
+            });
+            const fillRateSeriesData = (data) => {
+                const knownIndexes = data.map((value, index) => Number.isFinite(value) ? index : -1).filter(index => index >= 0);
+                if (!knownIndexes.length) return data;
+                return data.map((value, index) => {
+                    if (Number.isFinite(value)) return value;
+                    const prev = knownIndexes.filter(item => item < index).pop();
+                    const next = knownIndexes.find(item => item > index);
+                    if (prev == null) return data[next];
+                    if (next == null) return data[prev];
+                    return data[index - prev <= next - index ? prev : next];
+                });
+            };
+            const buildRateSeries = (groups) => groups.map((group, index) => ({
+                name: group.name,
+                type: "line",
+                smooth: true,
+                symbolSize: 7,
+                connectNulls: true,
+                data: fillRateSeriesData(buildSeriesData(buckets.map(bucket => ({
+                    ...bucket,
+                    rows: bucket.rows.filter(group.filter)
+                })))),
+                color: group.color || ["#165DFF", "#722ED1", "#14C9C9", "#FF7D00", "#00B42A", "#F53F3F"][index % 6],
+                areaStyle: { opacity: groups.length === 1 ? 0.08 : 0.02 }
+            }));
+            const cartonGroups = () => {
+                if (trendMode === "version") {
+                    return cartonVersionLabels.map(name => ({ name, filter: row => row.version === name }));
+                }
+                if (trendMode === "supplier") {
+                    return unique(list, "supplier").map(name => ({ name, filter: row => row.supplier === name }));
+                }
+                if (trendMode === "supplierVersion") {
+                    return [...new Set(list.map(row => `${row.supplier} / ${row.version || "未标版本"}`))].filter(Boolean).map(name => ({
+                        name,
+                        filter: row => `${row.supplier} / ${row.version || "未标版本"}` === name
+                    }));
+                }
+                return [{ name: "综合", filter: () => true, color: material.color }];
+            };
+            const supplierGroups = () => trendMode === "supplier"
+                ? unique(trendList, "supplier").map(name => ({ name, filter: row => row.supplier === name }))
+                : [{ name: "综合", filter: () => true, color: material.color }];
+            const lidGroups = () => trendMode === "line"
+                ? unique(trendList, "line").map(name => ({ name, filter: row => row.line === name }))
+                : trendMode === "version"
+                ? unique(trendList, "version").map(name => ({ name, filter: row => row.version === name }))
+                : [{ name: "综合", filter: () => true, color: material.color }];
+            const series = isLid
+                ? buildRateSeries(lidGroups())
+                : isCarton
+                ? buildRateSeries(cartonGroups())
+                : isSupplierTrend
+                ? buildRateSeries(supplierGroups())
+                : isCan && trendMode === "version"
+                ? canVersionLabels.map((version, index) => ({
+                    name: version,
+                    type: "line",
+                    smooth: true,
+                    symbolSize: 7,
+                    connectNulls: true,
+                    data: buildSeriesData(buckets.map(bucket => ({ ...bucket, rows: bucket.rows.filter(row => row.version === version) })), canVersionTrendSamples[index]),
+                    color: ["#FF7D00", "#165DFF", "#722ED1"][index],
+                    areaStyle: { opacity: 0.03 }
+                }))
+                : [{
+                    name: material.name,
+                    type: "line",
+                    smooth: true,
+                    symbolSize: 7,
+                    connectNulls: true,
+                    data: buildSmoothSampleData(buckets),
+                    color: material.color,
+                    areaStyle: { opacity: 0.08 }
+                }];
+            const chart = disposeChart("trendChart");
+            chart.setOption({
+                ...chartBase(),
+                tooltip: { ...chartBase().tooltip, trigger: "axis", valueFormatter: value => value == null ? "--" : `${value}%` },
+                legend: (isCan && trendMode === "version") || (isLid && trendMode !== "overall") || isCarton || isSupplierTrend ? { top: 0, type: "scroll", textStyle: { color: "#4E5969" } } : undefined,
+                grid: { left: 42, right: 24, top: (isCan && trendMode === "version") || (isLid && trendMode !== "overall") || isCarton || isSupplierTrend ? 70 : 42, bottom: 34, containLabel: true },
+                xAxis: { type: "category", boundaryGap: false, data: buckets.map(item => item.label), axisLabel: { color: "#4E5969" }, axisLine: { lineStyle: { color: "#E5E8EF" } } },
+                yAxis: { type: "value", min: isCarton || isSupplierTrend ? 0 : 80, max: 100, axisLabel: { color: "#4E5969", formatter: "{value}%" }, splitLine: { lineStyle: { color: "#E5E8EF" } } },
+                series
+            });
+        }
+
+        function defectRows(list) {
+            return list.filter(row => row.result !== "合格" || row.risk || row.reason !== "-");
+        }
+
+        function countBy(list, key, fallback = "未分类") {
+            return list.reduce((acc, row) => {
+                const name = row[key] || fallback;
+                acc[name] = (acc[name] || 0) + 1;
+                return acc;
+            }, {});
+        }
+
+        function renderDefectAnalysis(list, material) {
+            const defects = defectRows(list);
+            const countUnit = "次";
+            renderDefectReasonChart(defects, countUnit);
+            renderDefectLineChart(defects, countUnit, material);
+            renderDefectTypeChart(defects, countUnit, material);
+        }
+
+        function renderDefectReasonChart(defects, unit) {
+            const reasons = defects.reduce((acc, row) => {
+                const name = row.reason !== "-" ? row.reason : row.result;
+                acc[name] = (acc[name] || 0) + 1;
+                return acc;
+            }, {});
+            const names = Object.keys(reasons);
+            disposeChart("defectReasonChart").setOption({
+                ...chartBase(),
+                tooltip: { ...chartBase().tooltip, trigger: "axis", valueFormatter: value => `${value}${unit}` },
+                xAxis: { type: "value", axisLabel: { color: "#4E5969" }, splitLine: { lineStyle: { color: "#E5E8EF" } } },
+                yAxis: { type: "category", data: names.length ? names : ["无不良"], axisLabel: { color: "#4E5969" } },
+                series: [{ name: "不良次数", type: "bar", barWidth: 18, data: names.length ? names.map(name => reasons[name]) : [0], color: "#F53F3F" }]
+            });
+        }
+
+        function renderDefectLineChart(defects, unit, material) {
+            const useWorkshop = material && material.id === "sugar";
+            const groupKey = useWorkshop ? "workshop" : "line";
+            const groupLabels = useWorkshop ? workshopLabels : lineLabels;
+            const groupCounts = countBy(defects, groupKey);
+            const names = groupLabels.filter(name => groupCounts[name]).concat(Object.keys(groupCounts).filter(name => !groupLabels.includes(name)));
+            document.getElementById("defectLineTitle").textContent = useWorkshop ? "不良类型车间" : "不良类型线别";
+            disposeChart("defectLineChart").setOption({
+                ...chartBase(),
+                tooltip: { ...chartBase().tooltip, trigger: "axis", valueFormatter: value => `${value}${unit}` },
+                xAxis: { type: "category", data: names.length ? names : ["无不良"], axisLabel: { color: "#4E5969" } },
+                yAxis: { type: "value", axisLabel: { color: "#4E5969" }, splitLine: { lineStyle: { color: "#E5E8EF" } } },
+                series: [{ name: "不良次数", type: "bar", barWidth: 18, data: names.length ? names.map(name => groupCounts[name]) : [0], color: "#FF7D00" }]
+            });
+        }
+
+        function renderDefectTypeChart(defects, unit, material) {
+            const typeCounts = countBy(defects, "productType");
+            const typeLabels = material?.id === "film" ? filmProductTypeLabels : productTypeLabels;
+            const data = typeLabels.map((name, index) => ({
+                name,
+                value: typeCounts[name] || 0,
+                itemStyle: { color: ["#165DFF", "#722ED1", "#14C9C9"][index] }
+            })).filter(item => item.value);
+            disposeChart("defectTypeChart").setOption({
+                tooltip: { ...chartBase().tooltip, formatter: params => `${params.marker}${params.name}<br/>${params.value}${unit}` },
+                legend: { bottom: 0, textStyle: { color: "#4E5969" } },
+                series: [{ name: "类型", type: "pie", radius: ["45%", "70%"], center: ["50%", "44%"], label: { color: "#4E5969", formatter: params => `${params.name} ${params.value}${unit}` }, data }]
+            });
+        }
+
+        function renderCanMonitor(material) {
+            const card = document.getElementById("canMonitorCard");
+            const metrics = monitorMetrics[material.id];
+            const profile = monitorProfiles[material.id];
+            card.classList.toggle("hidden", !metrics || !profile || material.id === "gradeSugar");
+            if (!metrics || !profile || material.id === "gradeSugar") return;
+
+            syncMonitorProductTypeOptions(material.id);
+
+            const select = document.getElementById("canMetricSelect");
+            const selectLabel = document.getElementById("canMetricSelectLabel");
+            if (material.id === "sugar") {
+                selectLabel.textContent = "统计方式";
+                if (select.dataset.materialId !== material.id) {
+                    select.innerHTML = [["overall", "综合"], ["supplier", "供应商"]].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+                    select.value = "overall";
+                    select.dataset.materialId = material.id;
+                }
+            } else {
+                selectLabel.textContent = "趋势指标";
+            }
+            if (select.dataset.materialId !== material.id) {
+                select.innerHTML = Object.keys(metrics).map(name => `<option value="${name}">${name}</option>`).join("");
+                select.value = profile.defaultMetric;
+                select.dataset.materialId = material.id;
+            }
+            if (material.id === "carton") {
+                select.value = profile.defaultMetric;
+            }
+
+            document.getElementById("materialMonitorTitle").textContent = `${material.name}检测指标监控`;
+            document.getElementById("materialMonitorMetricTitle").textContent = profile.metricTitle;
+            document.querySelector("#canMonitorCard .can-monitor-head").style.display = "";
+            selectLabel.style.display = material.id === "carton" ? "none" : "";
+            select.style.display = material.id === "carton" ? "none" : "";
+            document.querySelectorAll(".film-monitor-product-control").forEach(item => {
+                item.style.display = ["can", "lid", "carton", "film"].includes(material.id) ? "" : "none";
+            });
+
+            if (material.id === "carton") {
+                renderCartonMetricSummary(monitorMetricsForSelectedProduct(metrics));
+                renderCanMetricChart();
+                return;
+            }
+            if (material.id === "sugar") {
+                renderSugarMetricSummary(metrics);
+                renderCanMetricChart();
+                return;
+            }
+            if (material.id === "flavor") {
+                renderFlavorMetricSummary(metrics);
+                renderCanMetricChart();
+                return;
+            }
+            if (material.id === "liquidSugar") {
+                renderLiquidSugarMetricSummary(metrics);
+                renderCanMetricChart();
+                return;
+            }
+
+            const displayMetrics = ["can", "lid", "carton", "film"].includes(material.id) ? monitorMetricsForSelectedProduct(metrics) : metrics;
+            document.getElementById("canMetricGrid").className = `can-data-grid ${Object.keys(metrics).length === 6 ? "two-row" : ""}`;
+            document.getElementById("canMetricGrid").innerHTML = Object.entries(displayMetrics).map(([name, metric], index) => {
+                const stats = metricStats(metric.values);
+                const alert = stats.max > metric.max || stats.min < metric.min;
+                return `
+                    <div class="analysis-item can-tile ${alert ? "alert" : ""}"${annotationAttrs(monitorAnnotation(material, name, index + 1))}>
+                        <span>${name}</span>
+                        <strong>${stats.mean.toFixed(metric.unit === "%" ? 1 : 2)} ${metric.unit}</strong>
+                        <div class="metric-label">最小 ${stats.min} · 最大 ${stats.max} · 波动偏差 ${stats.deviation.toFixed(metric.unit === "%" ? 1 : 2)}</div>
+                        <div class="metric-label">规格 ${metric.min}-${metric.max}${metric.unit}</div>
+                    </div>
+                `;
+            }).join("");
+
+            renderCanMetricChart();
+        }
+
+        function renderLiquidSugarMetricSummary(metrics) {
+            const rows = Object.entries(metrics).map(([name, metric]) => ({
+                name,
+                unit: metric.unit || "－",
+                spec: metric.specLabel,
+                value: metric.displayValue
+            }));
+            document.getElementById("materialMonitorMetricTitle").textContent = "液体糖关键指标";
+            document.getElementById("canMetricGrid").className = "liquid-input-grid";
+            document.getElementById("canMetricGrid").innerHTML = rows.map((row, index) => `
+                <div class="liquid-input-cell"${annotationAttrs(monitorAnnotation(materialById("liquidSugar"), row.name, index + 1))}>
+                    <div class="liquid-input-name">
+                        <strong>${row.name}</strong>
+                        <div class="liquid-input-meta">单位：${row.unit} · 标准：${row.spec}</div>
+                    </div>
+                    <div class="liquid-input-field">${row.value}</div>
+                </div>
+            `).join("");
+        }
+
+        function renderFlavorMetricSummary(metrics) {
+            const columns = [
+                ["外观", "", metrics["外观"].displayValue],
+                ["色度", "(>40)", metrics["色度"].displayValue],
+                ["Brix(%)", "(39.1~41.1)", metrics["Brix(%)"].displayValue],
+                ["密度(g/cm³)", "(0.9108~0.9308)", metrics["密度(g/cm³)"].displayValue]
+            ];
+            document.getElementById("materialMonitorMetricTitle").textContent = "香精关键指标";
+            document.getElementById("canMetricGrid").className = "flavor-input-grid";
+            document.getElementById("canMetricGrid").innerHTML = `
+                ${columns.map(([label, spec]) => `<div class="flavor-input-head">${label}${spec ? `<br>${spec}` : ""}</div>`).join("")}
+                ${columns.map(([label, , value], index) => `
+                    <div class="flavor-input-cell"${annotationAttrs(monitorAnnotation(materialById("flavor"), label, index + 1))}>
+                        <div class="flavor-field">${value}${label === "外观" ? '<span class="select-arrow">⌄</span>' : ""}</div>
+                    </div>
+                `).join("")}
+            `;
+        }
+
+        function renderSugarMetricSummary(metrics) {
+            const bacteria = metrics["细菌总数"];
+            const bacteriaStats = metricStats(bacteria.values);
+            const sensoryPass = true;
+            const hasBacteriaFail = bacteria.values.some(value => value > bacteria.max || value < bacteria.min);
+            const cards = [
+                {
+                    label: "细菌总数",
+                    value: `${bacteriaStats.mean.toFixed(2)} ${bacteria.unit}`,
+                    detail: `最小 ${bacteriaStats.min} · 最大 ${bacteriaStats.max} · 波动偏差 ${bacteriaStats.deviation.toFixed(2)}`,
+                    spec: `规格 ${bacteria.min}-${bacteria.max}${bacteria.unit}`,
+                    alert: hasBacteriaFail
+                },
+                {
+                    label: "感官/形状",
+                    value: sensoryPass ? "合格" : "部分不合格",
+                    detail: "感官正常 · 性状正常",
+                    spec: "规格 正常",
+                    alert: !sensoryPass
+                }
+            ];
+            document.getElementById("materialMonitorMetricTitle").textContent = "白砂糖关键指标";
+            document.getElementById("canMetricGrid").className = "can-data-grid two-column";
+            document.getElementById("canMetricGrid").innerHTML = cards.map((card, index) => `
+                <div class="analysis-item can-tile ${card.alert ? "alert" : ""}"${annotationAttrs(monitorAnnotation(materialById("sugar"), card.label, index + 1))}>
+                    <span>${card.label}</span>
+                    <strong>${card.value}</strong>
+                    <div class="metric-label">${card.detail}</div>
+                    <div class="metric-label">${card.spec}</div>
+                </div>
+            `).join("");
+        }
+
+        function syncMonitorProductTypeOptions(materialId) {
+            const select = document.getElementById("filmMonitorProductTypeSelect");
+            const options = materialId === "film"
+                ? [["普通型", "普通型"], ["强化型", "强化型"], ["PE彩膜", "PE彩膜"]]
+                : [["红牛普通", "普通型"], ["红牛强化", "强化型"], ["战马", "战马"]];
+            const optionKey = materialId === "film" ? "film" : "standard";
+            if (select.dataset.optionKey === optionKey) return;
+            select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+            select.dataset.optionKey = optionKey;
+        }
+
+        function monitorMetricsForSelectedProduct(metrics) {
+            const select = document.getElementById("filmMonitorProductTypeSelect");
+            const type = select ? select.value : "普通型";
+            const offsetMap = {
+                "红牛普通": 0,
+                "红牛强化": 0.35,
+                "战马": -0.28,
+                "普通型": 0,
+                "强化型": 0.35,
+                "PE彩膜": -0.28
+            };
+            const offset = offsetMap[type] || 0;
+            return Object.fromEntries(Object.entries(metrics).map(([name, metric]) => {
+                const adjustedValues = metric.values.map((value, index) => {
+                    const direction = index % 2 === 0 ? 1 : -1;
+                    const scaledOffset = metric.unit === "kg" ? offset * 0.18 : metric.unit === "mm" ? offset * 0.32 : offset;
+                    const adjusted = value + scaledOffset * direction;
+                    return Number(adjusted.toFixed(metric.unit === "kg" ? 2 : 1));
+                });
+                return [name, { ...metric, values: adjustedValues }];
+            }));
+        }
+
+        function renderCartonMetricSummary(metrics) {
+            const select = document.getElementById("canMetricSelect");
+            const metricName = select.value || monitorProfiles.carton.defaultMetric;
+            const metric = metrics[metricName] || metrics[monitorProfiles.carton.defaultMetric];
+            const stats = metricStats(metric.values);
+            document.getElementById("materialMonitorMetricTitle").textContent = `${metricName}统计指标`;
+            const statCards = [
+                ["均值", formatMetricNumber(stats.mean, metric, true)],
+                ["最大值", formatMetricNumber(stats.max, metric)],
+                ["最小值", formatMetricNumber(stats.min, metric)],
+                ["波动偏差", formatMetricNumber(stats.deviation, metric, true)]
+            ];
+            document.getElementById("canMetricGrid").className = "can-data-grid";
+            document.getElementById("canMetricGrid").innerHTML = statCards.map(([label, value], index) => `
+                <div class="analysis-item can-tile"${annotationAttrs(monitorAnnotation(materialById("carton"), `${metricName}${label}`, index + 1))}>
+                    <span>${label}</span>
+                    <strong>${value} ${metric.unit}</strong>
+                    <div class="metric-label">${metricName}</div>
+                </div>
+            `).join("");
+        }
+
+        function renderCanMetricChart() {
+            const material = materialById(currentMaterialId);
+            const metrics = monitorMetrics[material.id] || {};
+            const profile = monitorProfiles[material.id] || {};
+            const metricName = document.getElementById("canMetricSelect").value || "翻边尺寸";
+            const displayMetrics = ["can", "lid", "carton", "film"].includes(material.id) ? monitorMetricsForSelectedProduct(metrics) : metrics;
+            const metric = displayMetrics[metricName] || displayMetrics[profile.defaultMetric];
+            if (!metric) return;
+            const stats = metricStats(metric.values);
+            const dataMin = Math.min(...metric.values, metric.min);
+            const dataMax = Math.max(...metric.values, metric.max);
+            const spread = Math.max(dataMax - dataMin, 0.1);
+            const yMin = Number((dataMin - spread * 0.22).toFixed(2));
+            const yMax = Number((dataMax + spread * 0.22).toFixed(2));
+            if (material.id === "sugar") {
+                const batchLabels = metric.values.map((_, index) => `批次${String(index + 1).padStart(2, "0")}`);
+                const trendMode = document.getElementById("canMetricSelect").value;
+                const suppliers = unique(rowsForMaterial(getFilteredRows(), material), "supplier");
+                const supplierOffsets = { "广西糖业": -3, "湖北糖业": 6 };
+                const supplierSeries = suppliers.map((supplier, index) => ({
+                    name: supplier,
+                    type: "line",
+                    smooth: true,
+                    symbolSize: 7,
+                    data: metric.values.map((value, pointIndex) => Number(Math.max(metric.min, value + (supplierOffsets[supplier] || 0) + (pointIndex % 2 === 0 ? -1 : 1)).toFixed(1))),
+                    color: ["#00B42A", "#165DFF", "#FF7D00"][index % 3],
+                    areaStyle: { opacity: 0.03 }
+                }));
+                disposeChart("canMetricChart").setOption({
+                    ...chartBase(),
+                    tooltip: { ...chartBase().tooltip, trigger: "axis", valueFormatter: value => `${value} ${metric.unit}` },
+                    legend: trendMode === "supplier" ? { top: 0, type: "scroll", textStyle: { color: "#4E5969" } } : undefined,
+                    grid: { left: 44, right: 34, top: trendMode === "supplier" ? 56 : 32, bottom: 36, containLabel: true },
+                    xAxis: { type: "category", data: batchLabels, axisLabel: { color: "#4E5969" } },
+                    yAxis: { type: "value", name: metric.unit, min: yMin, max: yMax, axisLabel: { color: "#4E5969" }, splitLine: { lineStyle: { color: "#E5E8EF" } } },
+                    series: trendMode === "supplier" ? supplierSeries : [{
+                        name: "细菌总数",
+                        type: "line",
+                        smooth: true,
+                        symbolSize: 7,
+                        data: metric.values,
+                        color: material.color,
+                        areaStyle: { opacity: 0.08 }
+                    }],
+                    markLine: undefined
+                });
+                const chart = charts.canMetricChart;
+                chart.setOption({
+                    series: (trendMode === "supplier" ? supplierSeries : [{
+                        name: "细菌总数",
+                        type: "line",
+                        smooth: true,
+                        symbolSize: 7,
+                        data: metric.values,
+                        color: material.color,
+                        areaStyle: { opacity: 0.08 }
+                    }]).map(item => ({
+                        ...item,
+                        markLine: {
+                            symbol: ["none", "arrow"],
+                            label: { formatter: params => params.name },
+                            lineStyle: { type: "dashed", color: "#F53F3F" },
+                            data: [
+                                { name: "上限", yAxis: metric.max },
+                                { name: "下限", yAxis: metric.min }
+                            ]
+                        }
+                    }))
+                });
+                return;
+            }
+            if (material.id === "carton") {
+                const batchLabels = metric.values.map((_, index) => `批次${String(index + 1).padStart(2, "0")}`);
+                const statSeries = [
+                    { name: "均值", data: metric.values.map(() => Number(stats.mean.toFixed(2))), color: "#14C9C9" },
+                    { name: "最大值", data: metric.values.map(() => stats.max), color: "#F53F3F" },
+                    { name: "最小值", data: metric.values.map(() => stats.min), color: "#00B42A" }
+                ];
+                disposeChart("canMetricChart").setOption({
+                    ...chartBase(),
+                    tooltip: { ...chartBase().tooltip, trigger: "axis", valueFormatter: value => `${value} ${metric.unit}` },
+                    legend: { top: 0, type: "scroll", textStyle: { color: "#4E5969" } },
+                    grid: { left: 44, right: 34, top: 56, bottom: 36, containLabel: true },
+                    xAxis: { type: "category", data: batchLabels, axisLabel: { color: "#4E5969" } },
+                    yAxis: { type: "value", name: metric.unit, min: yMin, max: yMax, axisLabel: { color: "#4E5969" }, splitLine: { lineStyle: { color: "#E5E8EF" } } },
+                    series: [
+                        {
+                            name: "实测值",
+                            type: "line",
+                            smooth: true,
+                            symbolSize: 7,
+                            data: metric.values,
+                            color: material.color,
+                            areaStyle: { opacity: 0.08 }
+                        },
+                        ...statSeries.map(item => ({
+                            name: item.name,
+                            type: "line",
+                            smooth: false,
+                            symbol: "none",
+                            lineStyle: { type: "dashed", width: 1.5 },
+                            data: item.data,
+                            color: item.color
+                        }))
+                    ]
+                });
+                return;
+            }
+            disposeChart("canMetricChart").setOption({
+                ...chartBase(),
+                tooltip: { ...chartBase().tooltip, trigger: "axis", valueFormatter: value => `${value} ${metric.unit}` },
+                grid: { left: 44, right: 34, top: 32, bottom: 36, containLabel: true },
+                xAxis: { type: "category", data: ["批次01", "批次02", "批次03", "批次04", "批次05", "批次06"], axisLabel: { color: "#4E5969" } },
+                yAxis: { type: "value", name: metric.unit, min: yMin, max: yMax, axisLabel: { color: "#4E5969" }, splitLine: { lineStyle: { color: "#E5E8EF" } } },
+                series: [{
+                    name: metricName,
+                    type: "line",
+                    smooth: true,
+                    symbolSize: 7,
+                    data: metric.values,
+                    color: material.color,
+                    areaStyle: { opacity: 0.08 },
+                    markLine: {
+                        symbol: ["none", "arrow"],
+                        label: { formatter: params => params.name },
+                        lineStyle: { type: "dashed", color: "#F53F3F" },
+                        data: [
+                            { name: "上限", yAxis: metric.max },
+                            { name: "下限", yAxis: metric.min }
+                        ]
+                    }
+                }]
+            });
+        }
+
+        const defaultDetailHeaders = ["批次号", "到货日期", "物料", "供应商", "数量", "检测项目", "实测值", "标准", "结论", "复检", "原因", "责任人", "来源单据", "详情"];
+        const canDetailHeaders = ["单据编号", "生产批号", "包号", "总托数", "空罐线别", "空罐版本", "检验日期", "总报告状态", "通知单状态", "送检来源单号", "产品大类", "产品类型", "确认人", "状态", "制单人", "创建时间", "详情"];
+        const lidDetailHeaders = ["单据编号", "生产批号", "包号", "总托数", "供应商", "产品大类", "产品类型", "检验结果", "通知单状态", "复检结果", "检验日期", "单据类型", "原单据编号", "检验员", "单据状态", "来源送检单号", "异常处理单号", "制单人", "创建时间", "详情"];
+        const cartonDetailHeaders = ["单据编号", "供应商", "流水号", "产品大类", "产品类型", "纸皮版本", "检验日期", "检验结果", "复检结果", "检验员", "单据状态", "创建时间", "创建人", "详情"];
+        const filmDetailHeaders = ["单据编号", "生产大类", "类型", "系统流水号", "到货数量", "供应商", "样品时间", "检验结果", "复检结果", "检验日期", "检验员", "单据状态", "制单人", "创建时间", "详情"];
+        const sugarDetailHeaders = ["单据编号", "取样日期", "生产批号", "进货总数量(kg)", "总批数", "检验日期", "检验结果", "复检结果", "审批状态", "制单人", "创建时间", "详情"];
+        const flavorDetailHeaders = ["单据编号", "年检状态", "销毁状态", "审批状态", "供应商", "厂商", "检验日期", "生产日期", "生产批号", "外观", "色度", "Brix(%)", "密度", "香气", "检验结果", "复检结果", "取样人", "检验员", "香味", "铅(mg/kg)", "砷(mg/kg)", "年检结果", "年检复检", "留样重量(ml)", "留样日期", "销毁人", "销毁日期", "制单人", "创建时间", "详情"];
+        const gradeSugarDetailHeaders = ["单据编号", "原厂批次", "厂商", "检验日期", "内部批次", "检验状态", "检验结果", "复检结果", "审批状态", "制单人", "创建时间", "详情"];
+        const liquidSugarDetailHeaders = ["单据编号", "批号", "生产日期", "检验日期", "检验结果", "复检结果", "报告人", "单据状态", "制单人", "创建时间", "详情"];
+
+        function canDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `QRD${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function lidDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `DG${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function cartonDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `ZP${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function filmDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(2, "0");
+            return `RSM${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function sugarDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `BST${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function flavorDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `XJ${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function gradeSugarDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `YJT${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function liquidSugarDocumentNo(row) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || "1").padStart(3, "0");
+            return `YTT${row.date.slice(2).replaceAll("-", "")}${suffix}`;
+        }
+
+        function canProductType(row) {
+            if (String(row.productType).includes("强化")) return "强化型";
+            if (String(row.productType).includes("战马")) return "战马";
+            return "普通型";
+        }
+
+        function canDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(3, "0");
+            const total = Math.round(Number(row.qty) * 10);
+            const line = `${11 - index % 4}线`;
+            const created = `${row.date} ${String(9 + index % 9).padStart(2, "0")}:${String(20 + index * 3).slice(-2)}:${String(32 + index * 7).slice(-2)}`;
+            return `<tr><td>${canDocumentNo(row)}</td><td><a class="detail-link" href="javascript:void(0)">26719${suffix.slice(-2)}A</a></td><td>1-${total}</td><td>${total}</td><td>${line}</td><td>${row.version || "普通型"}</td><td>${row.date}</td><td><span class="result">未生成</span></td><td><span class="result">未生成</span></td><td>YSJ${row.date.slice(0, 4)}${suffix}</td><td>红牛</td><td>${canProductType(row)}</td><td>--</td><td><span class="result">待确认</span></td><td>${row.owner}</td><td>${created}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function lidDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(3, "0");
+            const docNo = lidDocumentNo(row);
+            const split = index % 2 === 1;
+            const created = `${row.date} ${String(9 + index % 8).padStart(2, "0")}:${String(15 + index * 4).slice(-2)}:${String(21 + index * 9).slice(-2)}`;
+            return `<tr><td>${docNo}</td><td>龙口26719${suffix.slice(-2)}</td><td>1-${row.qty}</td><td>${row.qty}</td><td>${row.supplier}</td><td>红牛</td><td>${canProductType(row)}</td><td>${resultBadge(row)}</td><td><span class="result ${row.pass ? "success" : ""}">${row.pass ? "已生成" : "未生成"}</span></td><td>${row.recheck ? row.recheck.result : "-"}</td><td>${row.date}</td><td><span class="result ${split ? "warning" : "success"}">${split ? "拆分单据" : "原单据"}</span></td><td>${split ? `DG${row.date.slice(2).replaceAll("-", "")}002` : "--"}</td><td>${row.owner}</td><td><span class="result success">已完成</span></td><td>YSJ${row.date.slice(0, 4)}${suffix}</td><td>${row.pass ? "--" : `YC${row.date.slice(2).replaceAll("-", "")}${suffix}`}</td><td>${row.owner}</td><td>${created}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function cartonDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(3, "0");
+            const created = `${row.date} ${String(10 + index % 8).padStart(2, "0")}:${String(20 + index * 5).slice(-2)}:${String(17 + index * 11).slice(-2)}`;
+            return `<tr><td>${cartonDocumentNo(row)}</td><td>${row.supplier}</td><td>X${row.date.slice(2).replaceAll("-", "")}${suffix.slice(-2)}</td><td>红牛</td><td>${canProductType(row)}</td><td>${row.version || "普通型"}</td><td>${row.date}</td><td>${resultBadge(row)}</td><td>${row.recheck ? row.recheck.result : "-"}</td><td>${row.owner}</td><td><span class="result success">已完成</span></td><td>${created}</td><td>${row.owner}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function filmDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(2, "0");
+            const sampleTime = `${row.date} ${String(10 + index % 7).padStart(2, "0")}:${String(25 + index * 4).slice(-2)}:${String(7 + index * 13).padStart(2, "0").slice(-2)}`;
+            const filmType = filmProductTypeLabels.includes(row.productType) ? row.productType : "普通型";
+            return `<tr><td>${filmDocumentNo(row)}</td><td>红牛</td><td>${filmType}</td><td>X${row.date.slice(2).replaceAll("-", "")}${suffix}</td><td>${(Number(row.qty) * 10000).toFixed(3)}</td><td>${row.supplier}</td><td>${sampleTime}</td><td>${resultBadge(row)}</td><td>${row.recheck ? row.recheck.result : "-"}</td><td>${row.date}</td><td>${row.owner}</td><td><span class="result success">已完成</span></td><td>${row.owner}</td><td>${sampleTime}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function sugarDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(3, "0");
+            const created = `${row.date} ${String(9 + index % 8).padStart(2, "0")}:${String(22 + index * 6).slice(-2)}:${String(13 + index * 10).slice(-2)}`;
+            return `<tr><td>${sugarDocumentNo(row)}</td><td>${row.date}</td><td>${row.date.slice(0, 4)}05${suffix.slice(-2)}</td><td>${(Number(row.qty) * 1000).toFixed(2)}</td><td>1</td><td>${row.date}</td><td>${resultBadge(row)}</td><td>${row.recheck ? row.recheck.result : "-"}</td><td><span class="result success">已审核</span></td><td>${row.owner}</td><td>${created}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function flavorDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(3, "0");
+            const created = `${row.date} ${String(10 + index % 7).padStart(2, "0")}:${String(18 + index * 7).slice(-2)}:${String(25 + index * 11).slice(-2)}`;
+            const sampleDate = row.date;
+            return `<tr><td>${flavorDocumentNo(row)}</td><td><span class="result">待年检</span></td><td><span class="result">未销毁</span></td><td><span class="result success">已审核</span></td><td>${row.supplier}</td><td>${row.supplier}</td><td>${row.date}</td><td>${row.date}</td><td>XJ${row.date.slice(2).replaceAll("-", "")}${suffix.slice(-2)}</td><td>正常</td><td>${row.project.includes("色度") ? row.value : "95"}</td><td>66.8</td><td>1.028</td><td>纯正</td><td>${resultBadge(row)}</td><td>${row.recheck ? row.recheck.result : "-"}</td><td>${row.owner}</td><td>${row.owner}</td><td>正常</td><td>0.02</td><td>0.01</td><td>-</td><td>-</td><td>500</td><td>${sampleDate}</td><td>-</td><td>-</td><td>${row.owner}</td><td>${created}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function gradeSugarDetailRow(row, index) {
+            const suffix = String(row.id.match(/(\d+)$/)?.[1] || index + 1).padStart(3, "0");
+            const compactDate = row.date.slice(2).replaceAll("-", "");
+            const created = `${row.date} ${String(8 + index % 9).padStart(2, "0")}:${String(35 + index * 6).slice(-2)}:${String(34 + index * 9).slice(-2)}`;
+            return `<tr><td>${gradeSugarDocumentNo(row)}</td><td>${row.date.replaceAll("-", "")}${index % 3 ? "-2" : ""}</td><td>${row.supplier}</td><td>${row.date}</td><td>T${compactDate}${suffix}</td><td><span class="result ${index % 5 === 4 ? "success" : ""}">${index % 5 === 4 ? "全检" : "非全检"}</span></td><td>${resultBadge(row)}</td><td>${row.recheck ? row.recheck.result : "-"}</td><td><span class="result success">已完成</span></td><td>${row.owner}</td><td>${created}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function liquidSugarDetailRow(row, index) {
+            const created = `${row.date} ${String(10 + index % 8).padStart(2, "0")}:${String(23 + index * 5).slice(-2)}:${String(4 + index * 13).padStart(2, "0").slice(-2)}`;
+            const recheck = row.recheck ? (row.recheck.closed ? row.recheck.result : `复检中(0/${row.recheck.count})`) : "-";
+            return `<tr><td>${liquidSugarDocumentNo(row)}</td><td>Y${row.date.replaceAll("-", "")}</td><td>${row.date}</td><td>${row.date}</td><td>${resultBadge(row)}</td><td>${recheck}</td><td>${row.owner}</td><td><span class="result success">已完成</span></td><td>${row.owner}</td><td>${created}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function defaultDetailRow(row) {
+            return `<tr><td>${row.id}</td><td>${row.date}</td><td>${row.material}</td><td>${row.supplier}</td><td>${row.qty}${row.unit}</td><td>${row.project}</td><td>${row.value}</td><td>${row.spec}</td><td>${resultBadge(row)}</td><td>${row.recheck ? `${row.recheck.count}次 / ${row.recheck.result}` : "-"}</td><td>${row.reason}</td><td>${row.owner}</td><td>${row.doc}</td><td><span class="detail-link">查看</span></td></tr>`;
+        }
+
+        function renderTable(material, list) {
+            const isCan = material.id === "can";
+            const isLid = material.id === "lid";
+            const isCarton = material.id === "carton";
+            const isFilm = material.id === "film";
+            const isSugar = material.id === "sugar";
+            const isFlavor = material.id === "flavor";
+            const isGradeSugar = material.id === "gradeSugar";
+            const isLiquidSugar = material.id === "liquidSugar";
+            const headers = isCan ? canDetailHeaders : isLid ? lidDetailHeaders : isCarton ? cartonDetailHeaders : isFilm ? filmDetailHeaders : isSugar ? sugarDetailHeaders : isFlavor ? flavorDetailHeaders : isGradeSugar ? gradeSugarDetailHeaders : isLiquidSugar ? liquidSugarDetailHeaders : defaultDetailHeaders;
+            const rowRenderer = isCan ? canDetailRow : isLid ? lidDetailRow : isCarton ? cartonDetailRow : isFilm ? filmDetailRow : isSugar ? sugarDetailRow : isFlavor ? flavorDetailRow : isGradeSugar ? gradeSugarDetailRow : isLiquidSugar ? liquidSugarDetailRow : defaultDetailRow;
+            document.getElementById("tableNote").textContent = `${material.name} · ${list.length} ${material.unit}`;
+            document.getElementById("detailHead").innerHTML = headers.map(header => `<th>${header}</th>`).join("");
+            document.getElementById("detailRows").innerHTML = list.length ? list.map(rowRenderer).join("") : `<tr><td colspan="${headers.length}" class="empty">当前筛选下无 ${material.name} 数据</td></tr>`;
+        }
+
+        function updateFilterSummary() {
+            const start = document.getElementById("startDate").value || "未设置";
+            const end = document.getElementById("endDate").value || "未设置";
+            const period = document.getElementById("periodType").selectedOptions[0].textContent;
+            const supplier = document.getElementById("supplierFilter").selectedOptions[0].textContent;
+            document.getElementById("filterSummary").textContent = `当前筛选：${start} 至 ${end} / ${period} / ${supplier}`;
+        }
+
+        function renderHome() {
+            const list = getFilteredRows();
+            renderMaterialCards(list);
+            renderSampleModule();
+        }
+
+        function refresh() {
+            const startInput = document.getElementById("startDate");
+            const endInput = document.getElementById("endDate");
+            endInput.min = startInput.value || "";
+            if (startInput.value && endInput.value && endInput.value < startInput.value) {
+                document.getElementById("filterSummary").textContent = "当前筛选：结束日期不得早于开始日期";
+                return;
+            }
+            updateFilterSummary();
+            if (currentMaterialId) {
+                renderDetail(materialById(currentMaterialId));
+            } else {
+                renderHome();
+            }
+            updateTime();
+            refreshAnnotationMarkers();
+        }
+
+        function openDetail(id) {
+            location.hash = `detail/${id}`;
+        }
+
+        function goHome() {
+            location.hash = "";
+        }
+
+        function applyRoute() {
+            const match = location.hash.match(/^#detail\/(.+)$/);
+            const materialId = match ? decodeURIComponent(match[1]) : "";
+            currentMaterialId = materialId;
+            document.getElementById("homeView").classList.toggle("active", !materialId);
+            document.getElementById("detailView").classList.toggle("active", Boolean(materialId));
+            if (materialId) {
+                const material = materialById(materialId);
+                document.getElementById("pageTitle").textContent = material.name;
+                document.getElementById("pageSubtitle").textContent = "物料详情页 · 检测趋势、异常原因与批次明细";
+                renderDetail(material);
+            } else {
+                document.getElementById("pageTitle").textContent = "原材料看板";
+                document.getElementById("pageSubtitle").textContent = "按物料汇总检测数量、合格、不合格、复检和供应商合格率";
+                renderHome();
+            }
+            refreshAnnotationMarkers();
+        }
+
+        function updateSupplierOptions() {
+            const select = document.getElementById("supplierFilter");
+            const current = select.value;
+            select.innerHTML = '<option value="all">全部供应商</option>' + unique(rows, "supplier").map(name => `<option value="${name}">${name}</option>`).join("");
+            select.value = [...select.options].some(option => option.value === current) ? current : "all";
+        }
+
+        function updateTime() {
+            document.getElementById("updateTime").textContent = `更新时间 ${new Date().toLocaleString("zh-CN", { hour12: false })}`;
+        }
+
+        function exportCurrent() {
+            const list = currentMaterialId ? rowsForMaterial(getFilteredRows(), materialById(currentMaterialId)) : getFilteredRows();
+            const header = ["批次号", "到货日期", "物料", "供应商", "数量", "检测项目", "实测值", "标准", "结论", "状态", "复检", "原因", "责任人", "来源单据"];
+            const lines = [header, ...list.map(row => [row.id, row.date, row.material, row.supplier, `${row.qty}${row.unit}`, row.project, row.value, row.spec, row.result, row.status, row.recheck ? `${row.recheck.count}次/${row.recheck.result}` : "-", row.reason, row.owner, row.doc])];
+            const csv = "\ufeff" + lines.map(line => line.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `原材料调整-${currentMaterialId || "首页"}-${Date.now()}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle("dark-theme");
+            document.getElementById("themeButton").textContent = document.body.classList.contains("dark-theme") ? "浅色" : "深色";
+            refresh();
+            Object.values(charts).forEach(chart => chart.resize());
+        }
+
+        function arrayFromAttr(value) {
+            return value ? value.split("；").filter(Boolean) : [];
+        }
+
+        function normalizeAnnotationRule(id, target) {
+            const staticRule = annotationLogic[id];
+            if (staticRule) return staticRule;
+            return {
+                tag: target.dataset.annotationLabel || "--",
+                title: target.dataset.annotationTitle || "取值逻辑",
+                desc: target.dataset.annotationDesc || "当前元素的取值逻辑。",
+                sources: arrayFromAttr(target.dataset.annotationSources),
+                rules: arrayFromAttr(target.dataset.annotationRules),
+                interaction: target.dataset.annotationInteraction || "点击标注元素查看取值说明。"
+            };
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function renderRuleList(items) {
+            const list = items && items.length ? items : ["待业务确认"];
+            return `<ul>${list.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+        }
+
+        function selectAnnotation(target) {
+            document.querySelectorAll(".annotation-active").forEach(node => node.classList.remove("annotation-active"));
+            target.classList.add("annotation-active");
+            const rule = normalizeAnnotationRule(target.dataset.annotationId, target);
+            document.getElementById("annotationPanelTag").textContent = rule.tag || target.dataset.annotationLabel || "--";
+            document.getElementById("annotationPanelTitle").textContent = rule.title || "取值逻辑";
+            document.getElementById("annotationPanelBody").innerHTML = `
+                <div class="annotation-block">
+                    <h4>用途说明</h4>
+                    <p>${escapeHtml(rule.desc)}</p>
+                </div>
+                <div class="annotation-block">
+                    <h4>来源单据</h4>
+                    ${renderRuleList(rule.sources)}
+                </div>
+                <div class="annotation-block">
+                    <h4>取值规则</h4>
+                    ${renderRuleList(rule.rules)}
+                </div>
+                <div class="annotation-block">
+                    <h4>交互规则</h4>
+                    <p>${escapeHtml(rule.interaction)}</p>
+                </div>
+            `;
+        }
+
+        function visibleAnnotationTargets() {
+            return [...document.querySelectorAll("[data-annotation-id]")].filter(node => {
+                if (node.closest("#annotationPanel")) return false;
+                if (node.offsetParent === null && getComputedStyle(node).position !== "fixed") return false;
+                return true;
+            });
+        }
+
+        function refreshAnnotationMarkers() {
+            document.querySelectorAll(".annotation-marker").forEach(marker => marker.remove());
+            if (!document.body.classList.contains("annotation-mode")) return;
+            visibleAnnotationTargets().forEach(target => {
+                const marker = document.createElement("span");
+                marker.className = "annotation-marker";
+                marker.textContent = target.dataset.annotationLabel || normalizeAnnotationRule(target.dataset.annotationId, target).tag || "";
+                target.appendChild(marker);
+            });
+            const active = document.querySelector(".annotation-active[data-annotation-id]");
+            if (!active || !document.body.contains(active)) {
+                const first = visibleAnnotationTargets()[0];
+                if (first) selectAnnotation(first);
+            }
+        }
+
+        function toggleAnnotationMode(force) {
+            const enable = typeof force === "boolean" ? force : !document.body.classList.contains("annotation-mode");
+            if (enable) {
+                toggleEditMode(false);
+            }
+            document.body.classList.toggle("annotation-mode", enable);
+            document.getElementById("annotationButton").textContent = enable ? "退出标注" : "标注";
+            if (!enable) {
+                document.querySelectorAll(".annotation-marker").forEach(marker => marker.remove());
+                document.querySelectorAll(".annotation-active").forEach(node => node.classList.remove("annotation-active"));
+                return;
+            }
+            refreshAnnotationMarkers();
+        }
+
+        function handleAnnotationClick(event) {
+            if (!document.body.classList.contains("annotation-mode")) return;
+            if (event.target.closest("#annotationPanel") || event.target.closest("#annotationButton")) return;
+            const target = event.target.closest("[data-annotation-id]");
+            if (!target) return;
+            event.preventDefault();
+            event.stopPropagation();
+            selectAnnotation(target);
+            refreshAnnotationMarkers();
+        }
+
+        function toggleEditMode(force) {
+            const enable = typeof force === "boolean" ? force : !document.body.classList.contains("edit-mode");
+            if (enable && document.body.classList.contains("annotation-mode")) {
+                toggleAnnotationMode(false);
+            }
+            document.body.classList.toggle("edit-mode", enable);
+            document.getElementById("editButton").textContent = enable ? "退出编辑" : "编辑看板";
+        }
+
+        function bindEvents() {
+            document.addEventListener("click", handleAnnotationClick, true);
+            ["startDate", "endDate", "periodType", "supplierFilter"].forEach(id => {
+                document.getElementById(id).addEventListener("change", refresh);
+            });
+            document.getElementById("canMetricSelect").addEventListener("change", () => {
+                if (currentMaterialId === "carton") {
+                    renderCanMonitor(materialById(currentMaterialId));
+                    refreshAnnotationMarkers();
+                    return;
+                }
+                renderCanMetricChart();
+                refreshAnnotationMarkers();
+            });
+            document.getElementById("filmMonitorProductTypeSelect").addEventListener("change", () => {
+                if (["can", "lid", "carton", "film"].includes(currentMaterialId)) {
+                    renderCanMonitor(materialById(currentMaterialId));
+                    refreshAnnotationMarkers();
+                }
+            });
+            document.getElementById("trendModeSelect").addEventListener("change", () => {
+                if (currentMaterialId) {
+                    const material = materialById(currentMaterialId);
+                    renderTrendChart(material, rowsForMaterial(getFilteredRows(), material));
+                    refreshAnnotationMarkers();
+                }
+            });
+            document.getElementById("filmProductTypeSelect").addEventListener("change", () => {
+                if (currentMaterialId === "film") {
+                    const material = materialById(currentMaterialId);
+                    renderTrendChart(material, rowsForMaterial(getFilteredRows(), material));
+                    refreshAnnotationMarkers();
+                }
+            });
+            window.addEventListener("hashchange", () => {
+                applyRoute();
+                refresh();
+            });
+            window.addEventListener("resize", () => Object.values(charts).forEach(chart => chart.resize()));
+        }
+
+        function boot() {
+            updateSupplierOptions();
+            bindEvents();
+            updateFilterSummary();
+            applyRoute();
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        window.loadEcharts(boot);
+    </script>
+</body>
+
+</html>
